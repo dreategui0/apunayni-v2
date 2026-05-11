@@ -903,7 +903,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.0.0</span>
+          <span class="config-val">2.1.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -938,6 +938,7 @@ html, body {
             <div class="val gold" id="resHist">—</div>
           </div>
         </div>
+        <div id="resBreakdown"></div>
         <!-- Botones de compartir -->
         <div class="res-share-btns">
           <button class="res-share-btn apu" onclick="shareDisponibilidad('APUNAYNI')">📅 Disp. Apunayni</button>
@@ -2079,7 +2080,7 @@ function renderStats() {
   const total = rows.reduce((s,r) => s + Math.abs(r.valor), 0);
   const months = getStatsMonths();
   const avg = months.length ? Math.round(total / months.length) : 0;
-
+  
   // Monthly totals
   const monthlyTotals = months.map(m => {
     const [y, mo] = m.split('-').map(Number);
@@ -2092,7 +2093,17 @@ function renderStats() {
   const maxV = Math.max(...monthlyTotals.map(m => m.value), 1);
   const colorClass = isIngresos ? 'green' : 'red';
   const title = isIngresos ? 'Total Ingresos' : 'Total Egresos';
-
+  
+  // Pie chart slices by tipo
+  const tipoSums = {};
+  rows.forEach(r => {
+    const t = (r.tipo||'OTROS').toUpperCase() || 'OTROS';
+    tipoSums[t] = (tipoSums[t]||0) + Math.abs(r.valor);
+  });
+  const slices = Object.entries(tipoSums)
+    .map(([label, value]) => ({label, value}))
+    .sort((a,b) => b.value - a.value);
+  
   let html = '<div class="stat-card">'
     + '<div class="lbl">'+title.toUpperCase()+'</div>'
     + '<div class="val '+colorClass+'">'+fmtCOP(total)+'</div>'
@@ -2104,10 +2115,17 @@ function renderStats() {
     + '<div class="stat-card" style="margin:0">'
     + '<div class="lbl">MESES</div>'
     + '<div class="val gold" style="font-size:17px">'+months.length+'</div></div>'
-    + '</div>'
-    + '<div class="card-title" style="margin-bottom:10px">Mes a mes</div>'
+    + '</div>';
+  
+  // Pie chart
+  if (slices.length > 0) {
+    html += '<div class="card-title" style="margin-bottom:10px">Distribución</div>';
+    html += '<div class="stat-card">' + pieSVG(slices, isIngresos) + '</div>';
+  }
+  
+  // Bar chart
+  html += '<div class="card-title" style="margin-top:14px;margin-bottom:10px">Mes a mes</div>'
     + '<div class="stat-card" style="padding:14px 16px">';
-
   monthlyTotals.forEach(m => {
     const pct = (m.value / maxV * 100).toFixed(1);
     html += '<div class="stat-row">'
@@ -2118,6 +2136,45 @@ function renderStats() {
   });
   html += '</div>';
   div.innerHTML = html;
+}
+
+function pieSVG(slices, isIngresos) {
+  const ingColors = ['#2ecc8a','#7c6eff','#f0c060','#3498db','#e67e22','#9b59b6'];
+  const egrColors = ['#ff5f6d','#e67e22','#9b59b6','#1abc9c','#e74c3c','#7c6eff','#f0c060'];
+  const colors = isIngresos ? ingColors : egrColors;
+  const total = slices.reduce((s,sl) => s + sl.value, 0);
+  if (total === 0) return '<p style="color:var(--text3);font-size:12px;text-align:center">Sin datos</p>';
+  const r = 60, cx = 70, cy = 70;
+  let paths = '', angle = -Math.PI / 2;
+  slices.forEach((sl, i) => {
+    if (sl.value <= 0) return;
+    const pct = sl.value / total;
+    const sweep = pct * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(angle);
+    const y1 = cy + r * Math.sin(angle);
+    angle += sweep;
+    const x2 = cx + r * Math.cos(angle);
+    const y2 = cy + r * Math.sin(angle);
+    const large = sweep > Math.PI ? 1 : 0;
+    if (pct > 0.001) {
+      paths += '<path d="M'+cx+','+cy+' L'+x1.toFixed(1)+','+y1.toFixed(1)
+        +' A'+r+','+r+' 0 '+large+',1 '+x2.toFixed(1)+','+y2.toFixed(1)+' Z"'
+        +' fill="'+colors[i % colors.length]+'" stroke="var(--bg)" stroke-width="2"/>';
+    }
+  });
+  const legend = slices.map((sl, i) => {
+    const pct = (sl.value / total * 100).toFixed(1);
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px">'
+      + '<div style="width:10px;height:10px;border-radius:50%;background:'+colors[i % colors.length]+';flex-shrink:0"></div>'
+      + '<span style="flex:1;color:var(--text2)">'+sl.label+'</span>'
+      + '<span style="font-weight:700">'+pct+'%</span>'
+      + '<span style="color:var(--text3);width:80px;text-align:right">'+fmtCOP(sl.value)+'</span>'
+      + '</div>';
+  }).join('');
+  return '<div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">'
+    + '<svg width="140" height="140" viewBox="0 0 140 140" style="flex-shrink:0">'+paths+'</svg>'
+    + '<div style="flex:1;min-width:160px">'+legend+'</div>'
+    + '</div>';
 }
 
 // ═════════════════════════════════════════════════════════
@@ -2169,8 +2226,27 @@ function renderResSummary() {
     const fin = new Date(r.fin);
     return fin < hoy && r.estado !== 'CANCELADO';
   });
-  document.getElementById('resActivas').textContent = activas.length;
-  document.getElementById('resHist').textContent    = hist.length;
+  const apuAct  = activas.filter(r => r.cabana === 'APUNAYNI').length;
+  const salvAct = activas.filter(r => r.cabana === 'SALVAWASI').length;
+  const apuHist = hist.filter(r => r.cabana === 'APUNAYNI').length;
+  const salvHist= hist.filter(r => r.cabana === 'SALVAWASI').length;
+  const el = document.getElementById('resActivas');
+  if (el) el.textContent = activas.length;
+  const elH = document.getElementById('resHist');
+  if (elH) elH.textContent = hist.length;
+  // Update detailed breakdown
+  const detail = document.getElementById('resBreakdown');
+  if (detail) {
+    detail.innerHTML =
+      '<div style="background:rgba(46,204,138,0.1);border:1px solid #2ecc8a;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div style="font-size:11px;color:#2ecc8a;font-weight:700">🏕 APUNAYNI</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+apuAct+' activas · '+apuHist+' históricas</div></div>'
+      +'<div style="font-size:24px;font-weight:700;color:#2ecc8a">'+apuAct+'</div></div>'
+      +'<div style="background:rgba(240,192,96,0.1);border:1px solid #f0c060;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div style="font-size:11px;color:#f0c060;font-weight:700">⛺ SALVAWASI</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+salvAct+' activas · '+salvHist+' históricas</div></div>'
+      +'<div style="font-size:24px;font-weight:700;color:#f0c060">'+salvAct+'</div></div>';
+  }
 }
 
 function calNav(delta) {
@@ -2244,10 +2320,12 @@ function showDayReservas(dateStr) {
   });
   if (!matchingRes.length) {
     document.getElementById('resModalBody').innerHTML =
-      '<div style="text-align:center;padding:20px">'
+      '<div style="text-align:center;padding:10px">'
       + '<div style="font-size:18px;font-weight:700;margin-bottom:8px">' + formatDateES(date) + '</div>'
-      + '<div style="color:var(--text3);font-size:13px">Fecha disponible — sin reservas</div>'
-      + '<button onclick="closeResModalForced()" style="margin-top:14px;padding:8px 20px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>'
+      + '<div style="color:var(--text3);font-size:13px;margin-bottom:16px">Fecha disponible — sin reservas</div>'
+      + '<button onclick="nuevaReserva(\''+dateStr+'\',\'APUNAYNI\')" style="display:block;width:100%;margin-bottom:8px;padding:10px;background:rgba(46,204,138,0.15);border:1px solid #2ecc8a;color:#2ecc8a;border-radius:8px;cursor:pointer;font-weight:600">+ Nueva en Apunayni</button>'
+      + '<button onclick="nuevaReserva(\''+dateStr+'\',\'SALVAWASI\')" style="display:block;width:100%;margin-bottom:14px;padding:10px;background:rgba(240,192,96,0.15);border:1px solid #f0c060;color:#f0c060;border-radius:8px;cursor:pointer;font-weight:600">+ Nueva en Salvawasi</button>'
+      + '<button onclick="closeResModalForced()" style="padding:8px 20px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>'
       + '</div>';
   } else {
     let html = '<div style="font-size:16px;font-weight:700;margin-bottom:12px">' + formatDateES(date) + '</div>';
@@ -2269,9 +2347,14 @@ function showDayReservas(dateStr) {
         html += '<div class="modal-row"><span class="k">Total</span><span class="v">$'+fmtCOP(r.total)+'</span></div>';
         html += '<div class="modal-row"><span class="k">Saldo</span><span class="v" style="color:var(--gold)">$'+fmtCOP(r.saldo)+'</span></div>';
       }
-      if (r.estado === 'PENDIENTE') {
-        const precioSugerido = calcPrecio(r.nPersonas, r.frecuente);
-        html += '<button onclick="validarPago(\''+r.id+'\','+precioSugerido+')" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Validar pago</button>';
+      if (r.estado !== 'CANCELADO') {
+        html += '<div style="display:flex;gap:6px;margin-top:10px">';
+        if (r.estado === 'PENDIENTE') {
+          const precioSugerido = calcPrecio(r.nPersonas, r.frecuente);
+          html += '<button onclick="validarPago(\''+r.id+'\','+precioSugerido+')" style="flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✓ Validar pago</button>';
+        }
+        html += '<button onclick="cancelarReserva(\''+r.id+'\')" style="flex:1;padding:9px;background:rgba(255,95,109,0.15);color:var(--red);border:1px solid var(--red);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✗ Cancelar</button>';
+        html += '</div>';
       }
       html += '</div>';
     });
@@ -2302,7 +2385,7 @@ async function validarPago(id, precioSugerido) {
   try {
     const res = await fetch(scriptUrl, {
       method: 'POST',
-      headers: {'Content-Type':'application/json'},
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action: 'updateReserva',
         id: id,
@@ -2321,6 +2404,82 @@ async function validarPago(id, precioSugerido) {
   } catch(e) {
     alert('Error de conexión: ' + e.message);
   }
+}
+
+async function nuevaReserva(fechaInicio, cabana) {
+  const nombre = prompt('Nombre del cliente:');
+  if (!nombre) return;
+  const nPersonas = parseInt(prompt('Número de personas:', '2')) || 2;
+  const fechaFin = prompt('Fecha de salida (YYYY-MM-DD):', addDaysISO(fechaInicio, 1));
+  if (!fechaFin) return;
+  const abono = parseFloat(prompt('Abono recibido:', '0')) || 0;
+  const telefono = prompt('Teléfono (opcional):') || '';
+  const cedula = prompt('Cédula (opcional):') || '';
+
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
+  try {
+    const res = await fetch(scriptUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'createReserva',
+        cabana, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
+        nombre, n_personas: nPersonas, abono, telefono, cedula
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Reserva creada: ' + data.id);
+      closeResModalForced();
+      initReservas();
+    } else {
+      alert('Error: ' + (data.error || 'desconocido'));
+    }
+  } catch(e) {
+    alert('Error de conexión: ' + e.message);
+  }
+}
+
+async function cancelarReserva(id) {
+  const motivo = prompt('Motivo de cancelación (opcional):') || '';
+  const fecha = prompt('Fecha de la reserva (YYYY-MM-DD):');
+  if (!fecha) return;
+  const hoursToReservation = (new Date(fecha) - new Date()) / (1000*60*60);
+  const reembolsoSugerido = hoursToReservation >= 48 ? 100 : 0;
+  const pct = parseFloat(prompt('Porcentaje de reembolso (0-100):', reembolsoSugerido));
+  if (isNaN(pct)) return;
+
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
+  try {
+    const res = await fetch(scriptUrl, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        action:'updateReserva',
+        id,
+        estado_pago: 'CANCELADO',
+        notas: 'Cancelada. ' + motivo + ' Reembolso: ' + pct + '%'
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Reserva cancelada');
+      closeResModalForced();
+      initReservas();
+    } else {
+      alert('Error: ' + (data.error || 'desconocido'));
+    }
+  } catch(e) {
+    alert('Error: ' + e.message);
+  }
+}
+
+function addDaysISO(isoDate, days) {
+  const d = new Date(isoDate);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
 }
 
 function renderResList() {
@@ -2431,7 +2590,7 @@ async function sendChat() {
     const start = Date.now();
     const res = await fetch(AGENT_URL, {
       method:'POST',
-      headers:{'Content-Type':'application/json'},
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action:'chat',
         sessionId:'op-'+Date.now(),
