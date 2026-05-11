@@ -903,7 +903,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.3.0</span>
+          <span class="config-val">2.4.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -919,11 +919,11 @@ html, body {
   
     <!-- ══ SCREEN: ESTADÍSTICAS ════════════════════════════ -->
     <div class="screen" id="screenStats">
-      <!-- Espacio arriba reducido -->
-      <div style="height:60px"></div>
+      <!-- Espacio arriba duplicado para no taparse -->
+      <div style="height:120px"></div>
       <div id="statsContent"></div>
       <!-- Tabs al fondo, siempre visibles -->
-      <div style="position:sticky;bottom:0;background:var(--bg);padding:18px 0 24px;border-top:1px solid var(--border);margin-top:16px">
+      <div style="position:sticky;bottom:0;background:var(--bg);padding:18px 0 24px;border-top:1px solid var(--border);margin-top:16px;z-index:5;box-shadow:0 -10px 20px var(--bg)">
         <div class="stat-tabs" style="margin:0">
           <div class="stat-tab active" id="stTab0" onclick="setStatsTab(0)">📈 Ingresos</div>
           <div class="stat-tab" id="stTab1" onclick="setStatsTab(1)">📉 Egresos</div>
@@ -971,8 +971,8 @@ html, body {
 
     <!-- ══ SCREEN: CHAT IA ═════════════════════════════════ -->
     <div class="screen" id="screenChat">
-      <!-- Espacio vacío arriba duplicado -->
-      <div style="height:100px"></div>
+      <!-- Espacio vacío arriba mayor -->
+      <div style="height:200px"></div>
       <!-- Header compacto -->
       <div style="display:flex;align-items:center;gap:10px;padding:4px 0 10px;border-bottom:1px solid var(--border);margin-bottom:10px">
         <div class="chat-avatar">🤖</div>
@@ -2383,12 +2383,46 @@ function calcPrecio(nPersonas, frecuente) {
   return precio;
 }
 
-async function validarPago(id, precioSugerido) {
-  const total = prompt('Ingresa el total del alquiler:', precioSugerido);
-  if (!total) return;
-  const totalNum = parseFloat(total);
-  if (isNaN(totalNum) || totalNum <= 0) { alert('Valor inválido'); return; }
-  // Update via Apps Script
+function validarPago(id, precioSugerido) {
+  // Buscar la reserva para conocer abono actual
+  const r = reservasData.find(x => x.id === id);
+  const abonoActual = r ? r.abono : 0;
+  const totalActual = r ? r.total : precioSugerido;
+  document.getElementById('resModalBody').innerHTML =
+    '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Validar pago</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Cliente: ' + (r ? r.nombre : '—') + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Sugerido por sistema: $' + fmtCOP(precioSugerido) + '</div>'
+    + '<div class="form-group" style="margin-bottom:10px">'
+    + '<label class="form-label" style="font-size:12px">Total del alquiler</label>'
+    + '<input type="number" id="vpTotal" class="form-input" value="' + (totalActual || precioSugerido) + '" style="font-size:15px">'
+    + '</div>'
+    + '<div class="form-group" style="margin-bottom:14px">'
+    + '<label class="form-label" style="font-size:12px">Abono recibido</label>'
+    + '<input type="number" id="vpAbono" class="form-input" value="' + abonoActual + '" style="font-size:15px">'
+    + '</div>'
+    + '<div id="vpSaldo" style="background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:14px;display:flex;justify-content:space-between;font-size:13px">'
+    + '<span>Saldo pendiente:</span><span id="vpSaldoVal" style="color:var(--gold);font-weight:700">—</span>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="closeResModalForced()" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cancelar</button>'
+    + '<button onclick="confirmarValidacion(\''+id+'\')" style="flex:2;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Confirmar validación</button>'
+    + '</div>';
+  // Live saldo calculation
+  const updateSaldo = () => {
+    const t = parseFloat(document.getElementById('vpTotal').value) || 0;
+    const a = parseFloat(document.getElementById('vpAbono').value) || 0;
+    document.getElementById('vpSaldoVal').textContent = '$' + fmtCOP(t - a);
+  };
+  document.getElementById('vpTotal').addEventListener('input', updateSaldo);
+  document.getElementById('vpAbono').addEventListener('input', updateSaldo);
+  updateSaldo();
+}
+
+async function confirmarValidacion(id) {
+  const total = parseFloat(document.getElementById('vpTotal').value);
+  const abono = parseFloat(document.getElementById('vpAbono').value);
+  if (isNaN(total) || total <= 0) { alert('Total inválido'); return; }
+  if (isNaN(abono) || abono < 0)  { alert('Abono inválido'); return; }
   const scriptUrl = localStorage.getItem('scriptUrl');
   if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
   try {
@@ -2399,13 +2433,19 @@ async function validarPago(id, precioSugerido) {
         action: 'updateReserva',
         id: id,
         estado_pago: 'VALIDADO',
-        total_alquiler: totalNum
+        total_alquiler: total,
+        abono: abono
       })
     });
     const data = await res.json();
     if (data.ok) {
-      alert('Reserva validada exitosamente');
       closeResModalForced();
+      // Toast feedback
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;top:30px;left:50%;transform:translateX(-50%);background:var(--green);color:white;padding:10px 20px;border-radius:8px;z-index:1000;font-weight:600';
+      t.textContent = '✓ Reserva validada';
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2500);
       initReservas();
     } else {
       alert('Error: ' + (data.error || 'desconocido'));
@@ -2614,18 +2654,40 @@ async function sendChat() {
       setChatStatus('Error');
       return;
     }
-    const reply = data.reply || '';
+    let reply = data.reply || '';
+    // Si la respuesta es solo JSON tool call (a veces envuelto en ```json),
+    // limpiar y mostrar solo el resultado humanizado
+    let cleanReply = reply.trim();
+    if (cleanReply.startsWith('```')) {
+      cleanReply = cleanReply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    }
     chatHistory.push({role:'assistant', content:reply});
     let displayText = reply;
     let toolHtml = '';
     try {
-      const parsed = JSON.parse(reply.trim());
+      const parsed = JSON.parse(cleanReply);
       if (parsed.tool) {
-        displayText = 'Ejecutando: ' + parsed.tool + '...';
         const tr = data.toolResult || {};
-        if (tr.ok && tr.id) toolHtml = '<div class="chat-tool-result">✓ Reserva: '+tr.id+'</div>';
-        else if (tr.precio) toolHtml = '<div class="chat-tool-result">💰 $'+tr.precio.toLocaleString('es-CO')+(tr.descuento!=='ninguno'?' ('+tr.descuento+')':'')+'</div>';
-        else if (tr.error)  toolHtml = '<div class="chat-tool-result" style="color:var(--red)">'+tr.error+'</div>';
+        if (parsed.tool === 'buscar_reservas' && Array.isArray(tr)) {
+          displayText = 'Encontré ' + tr.length + ' reserva(s) que coinciden con "' + (parsed.filtro||'') + '":';
+          toolHtml = '<div class="chat-tool-result" style="text-align:left;font-size:12px;color:var(--text2);background:var(--surface2);border-color:var(--border)">';
+          tr.slice(0, 5).forEach(r => {
+            toolHtml += '<div style="padding:4px 0;border-bottom:1px solid var(--border)">' 
+              + '<strong>' + r.nombre + '</strong> — ' + r.cabana + '<br>'
+              + '<span style="color:var(--text3)">' + r.inicio + ' → ' + r.fin + ' · ' + r.estado + '</span>'
+              + '</div>';
+          });
+          toolHtml += '</div>';
+        } else if (parsed.tool === 'calcular_precio') {
+          displayText = 'Calculando precio...';
+          if (tr.precio) toolHtml = '<div class="chat-tool-result">💰 Precio: $'+tr.precio.toLocaleString('es-CO')+(tr.descuento!=='ninguno'?' (descuento '+tr.descuento+')':'')+'</div>';
+        } else if (parsed.tool === 'crear_reserva') {
+          displayText = 'Creando reserva...';
+          if (tr.ok && tr.id) toolHtml = '<div class="chat-tool-result">✓ Reserva creada: '+tr.id+'</div>';
+          else if (tr.error)  toolHtml = '<div class="chat-tool-result" style="color:var(--red)">'+tr.error+'</div>';
+        } else {
+          displayText = 'Ejecutando: ' + parsed.tool;
+        }
       }
     } catch(e) {}
     appendBubble('assistant', displayText, 'Agente', toolHtml);
