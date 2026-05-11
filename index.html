@@ -903,7 +903,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.2.0</span>
+          <span class="config-val">2.3.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -919,11 +919,11 @@ html, body {
   
     <!-- ══ SCREEN: ESTADÍSTICAS ════════════════════════════ -->
     <div class="screen" id="screenStats">
-      <!-- Espacio vacío arriba para que nada quede oculto -->
-      <div style="height:50px"></div>
+      <!-- Espacio arriba reducido -->
+      <div style="height:60px"></div>
       <div id="statsContent"></div>
       <!-- Tabs al fondo, siempre visibles -->
-      <div style="position:sticky;bottom:0;background:var(--bg);padding:12px 0 16px;border-top:1px solid var(--border);margin-top:16px">
+      <div style="position:sticky;bottom:0;background:var(--bg);padding:18px 0 24px;border-top:1px solid var(--border);margin-top:16px">
         <div class="stat-tabs" style="margin:0">
           <div class="stat-tab active" id="stTab0" onclick="setStatsTab(0)">📈 Ingresos</div>
           <div class="stat-tab" id="stTab1" onclick="setStatsTab(1)">📉 Egresos</div>
@@ -933,8 +933,8 @@ html, body {
 
     <!-- ══ SCREEN: RESERVAS ════════════════════════════════ -->
     <div class="screen" id="screenReservas">
-      <!-- Espacio vacío arriba el doble de las tarjetas para evitar cortes -->
-      <div style="height:80px"></div>
+      <!-- Espacio vacío arriba duplicado -->
+      <div style="height:160px"></div>
       <div class="res-summary">
           <div class="res-card">
             <div class="lbl">ACTIVAS</div>
@@ -971,8 +971,8 @@ html, body {
 
     <!-- ══ SCREEN: CHAT IA ═════════════════════════════════ -->
     <div class="screen" id="screenChat">
-      <!-- Espacio vacío arriba -->
-      <div style="height:50px"></div>
+      <!-- Espacio vacío arriba duplicado -->
+      <div style="height:100px"></div>
       <!-- Header compacto -->
       <div style="display:flex;align-items:center;gap:10px;padding:4px 0 10px;border-bottom:1px solid var(--border);margin-bottom:10px">
         <div class="chat-avatar">🤖</div>
