@@ -126,6 +126,11 @@ html, body {
 .screen.active {
   display: block; opacity: 1; transform: none;
 }
+#screenChat.active {
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+}
 
 /* ── CARDS ───────────────────────────────────────────────────────────── */
 .card {
@@ -508,7 +513,7 @@ html, body {
   text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
 
 /* ── CHATBOT ──────────────────────────────────────────────── */
-.screen#screenChat { padding: 0; display: flex; flex-direction: column; }
+.screen#screenChat { padding: 0; }
 .chat-header {
   flex-shrink: 0; padding: 14px 20px 10px;
   background: var(--surface); border-bottom: 1px solid var(--border);
@@ -1134,7 +1139,7 @@ function showSetup() {
 }
 
 // ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
-async function syncData() {
+async async function syncData() {
   if (!state.sheetId || !state.apiKey) return;
   setStatus('', 'Sincronizando...');
   document.getElementById('syncBtn').classList.add('syncing');
@@ -1162,7 +1167,7 @@ async function syncData() {
   document.getElementById('syncBtn').classList.remove('syncing');
 }
 
-async function appendRow(rowData) {
+async async function appendRow(rowData) {
   // Uses Google Apps Script Web App as proxy for writing
   // (API Key only allows reading; writing requires OAuth or Apps Script)
   const scriptUrl = localStorage.getItem('scriptUrl');
