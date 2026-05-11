@@ -452,7 +452,7 @@ html, body {
   z-index: 20;
 }
 .nav-btn {
-  flex: 1; padding: 12px 4px 10px;
+  flex: 1; padding: 10px 2px 8px; font-size: 10px;
   background: none; border: none; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; gap: 4px;
   color: var(--text3); font-family: var(--font-body);
@@ -506,6 +506,237 @@ html, body {
 .setup-step { width: 100%; margin-bottom: 20px; }
 .setup-step-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--accent); margin-bottom: 8px; }
+
+/* ═══ STATS SCREEN ════════════════════════════════════════ */
+.stat-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 16px; margin-bottom: 12px;
+}
+.stat-card .lbl { font-size: 11px; color: var(--text3); letter-spacing: 0.05em; }
+.stat-card .val { font-size: 22px; font-weight: 700; font-family: var(--font-display); margin-top: 4px; }
+.stat-card .val.green { color: var(--green); }
+.stat-card .val.red   { color: var(--red); }
+.stat-card .val.gold  { color: var(--gold); }
+.stat-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-row .month-lbl { width: 60px; color: var(--text2); font-size: 12px; }
+.stat-row .bar-bg {
+  flex: 1; height: 18px; background: var(--surface2);
+  border-radius: 4px; position: relative; overflow: hidden;
+}
+.stat-row .bar-fill {
+  height: 100%; border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.stat-row .bar-fill.green { background: linear-gradient(90deg, rgba(46,204,138,.3), rgba(46,204,138,.7)); }
+.stat-row .bar-fill.red   { background: linear-gradient(90deg, rgba(255,95,109,.3), rgba(255,95,109,.7)); }
+.stat-row .bar-val {
+  font-size: 11px; color: var(--text2); width: 80px;
+  text-align: right; font-weight: 600;
+}
+.stat-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.stat-tab {
+  flex: 1; padding: 8px; border-radius: 18px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text2); font-size: 13px; cursor: pointer;
+  text-align: center;
+}
+.stat-tab.active {
+  background: var(--accent-dim); border-color: var(--accent);
+  color: var(--text); font-weight: 600;
+}
+
+/* ═══ RESERVAS SCREEN ═════════════════════════════════════ */
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 4px; margin-bottom: 16px;
+}
+.cal-cell {
+  aspect-ratio: 1; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px; display: flex;
+  flex-direction: column; align-items: center; justify-content: flex-start;
+  cursor: pointer; position: relative; transition: all 0.15s;
+}
+.cal-cell:active { transform: scale(0.94); }
+.cal-cell.other-month { opacity: 0.3; }
+.cal-cell.today { border-color: var(--accent); }
+.cal-day { font-size: 13px; color: var(--text); margin-top: 2px; }
+.cal-dots {
+  display: flex; gap: 2px; margin-top: 4px;
+}
+.cal-dot { width: 7px; height: 7px; border-radius: 50%; }
+.cal-dot.apunayni  { background: #2ecc8a; }
+.cal-dot.salvawasi { background: #f0c060; }
+.cal-weekday {
+  font-size: 10px; color: var(--text3); text-align: center;
+  padding: 4px 0; font-weight: 600; letter-spacing: 0.04em;
+}
+.cal-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px;
+}
+.cal-nav-btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); width: 34px; height: 34px;
+  border-radius: 50%; cursor: pointer; font-size: 14px;
+}
+.cal-month-lbl {
+  font-size: 16px; font-weight: 700; font-family: var(--font-display);
+}
+.res-summary {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px;
+}
+.res-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+.res-card .lbl { font-size: 10px; color: var(--text3); letter-spacing: 0.05em; }
+.res-card .val { font-size: 22px; font-weight: 700; font-family: var(--font-display); }
+.res-card .val.green { color: var(--green); }
+.res-card .val.gold  { color: var(--gold); }
+.res-share-btns {
+  display: flex; gap: 8px; margin-bottom: 14px;
+}
+.res-share-btn {
+  flex: 1; padding: 10px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); border-radius: var(--radius-sm);
+  font-size: 12px; cursor: pointer; font-weight: 600;
+}
+.res-share-btn.apu  { border-color: #2ecc8a; }
+.res-share-btn.salv { border-color: #f0c060; }
+.res-list-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  margin-bottom: 8px; cursor: pointer;
+}
+.res-list-item .cab {
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; display: inline-block;
+}
+.res-list-item .cab.apunayni  { background: rgba(46,204,138,0.15); color: #2ecc8a; }
+.res-list-item .cab.salvawasi { background: rgba(240,192,96,0.15); color: #f0c060; }
+.res-list-item .estado.pendiente { color: var(--gold); }
+.res-list-item .estado.validado  { color: var(--green); }
+.res-list-item .estado.cancelado { color: var(--red); }
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal-card {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 20px;
+  max-width: 400px; width: 100%; max-height: 90vh; overflow-y: auto;
+}
+.modal-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.modal-row:last-child { border: none; }
+.modal-row .k { color: var(--text3); }
+.modal-row .v { color: var(--text); font-weight: 600; }
+
+/* ═══ CHAT SCREEN ═══════════════════════════════════════════ */
+#screenChat.active {
+  display: flex !important; flex-direction: column;
+  padding: 0; min-height: 0;
+}
+.chat-header {
+  flex-shrink: 0; padding: 12px 16px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.chat-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #2ecc8a);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.chat-agent-name { font-size: 14px; font-weight: 700; }
+.chat-agent-status { font-size: 11px; color: var(--green); }
+.chat-messages {
+  flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+  padding: 14px 14px 6px; min-height: 0;
+}
+.chat-bubble { max-width: 84%; margin-bottom: 10px; animation: fadeUp 0.2s; }
+.chat-bubble.user { margin-left: auto; }
+.bubble-text {
+  padding: 10px 13px; border-radius: 14px;
+  font-size: 13px; line-height: 1.4; word-wrap: break-word;
+}
+.chat-bubble.user .bubble-text {
+  background: var(--accent-dim); border-bottom-right-radius: 4px;
+}
+.chat-bubble.assistant .bubble-text {
+  background: var(--surface2); border-bottom-left-radius: 4px;
+}
+.bubble-meta {
+  font-size: 10px; color: var(--text3); margin-top: 3px; padding: 0 4px;
+}
+.chat-bubble.user .bubble-meta { text-align: right; }
+.chat-typing {
+  display: flex; gap: 4px; align-items: center;
+  padding: 12px 14px; background: var(--surface2);
+  border-radius: 14px; border-bottom-left-radius: 4px; width: fit-content;
+}
+.typing-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text3); animation: typingBounce 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes typingBounce {
+  0%,60%,100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+}
+.chat-tool-result {
+  margin-top: 6px; padding: 6px 10px;
+  background: rgba(46,204,138,0.1); border: 1px solid var(--green);
+  border-radius: 6px; font-size: 11px; color: var(--green);
+}
+.chat-input-bar {
+  flex-shrink: 0; padding: 8px 12px;
+  background: var(--bg); border-top: 1px solid var(--border);
+  display: flex; gap: 8px; align-items: flex-end;
+}
+.chat-input {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 18px; padding: 9px 13px; color: var(--text);
+  font-family: var(--font-body); font-size: 13px; resize: none;
+  max-height: 90px; outline: none; line-height: 1.3;
+}
+.chat-input:focus { border-color: var(--accent); }
+.chat-send-btn {
+  width: 36px; height: 36px; border-radius: 50%; border: none;
+  background: var(--accent); color: white; font-size: 14px;
+  cursor: pointer; flex-shrink: 0;
+}
+.chat-suggestions {
+  flex-shrink: 0; padding: 8px 12px; display: flex; gap: 6px;
+  overflow-x: auto; background: var(--bg);
+}
+.chat-chip {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 14px; padding: 5px 11px; font-size: 11px;
+  color: var(--text2); white-space: nowrap; flex-shrink: 0;
+  cursor: pointer;
+}
+.obs-panel {
+  flex-shrink: 0; padding: 5px 12px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  display: flex; gap: 10px; font-size: 9px; color: var(--text3);
+  overflow-x: auto;
+}
+.obs-stat { display: flex; flex-direction: column; align-items: center; min-width: 44px; }
+.obs-val { font-size: 11px; font-weight: 700; color: var(--text2); }
+@keyframes fadeUp {
+  from { opacity:0; transform: translateY(4px); }
+  to   { opacity:1; transform: none; }
+}
 </style>
 </head>
 
@@ -675,7 +906,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">1.0.2</span>
+          <span class="config-val">2.0.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -688,17 +919,120 @@ html, body {
 
   <!-- Bottom navv -->
 
+  
+    <!-- ══ SCREEN: ESTADÍSTICAS ════════════════════════════ -->
+    <div class="screen" id="screenStats">
+      <div style="padding-top:8px">
+        <div class="stat-tabs">
+          <div class="stat-tab active" id="stTab0" onclick="setStatsTab(0)">Ingresos</div>
+          <div class="stat-tab" id="stTab1" onclick="setStatsTab(1)">Egresos</div>
+        </div>
+        <div id="statsContent"></div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: RESERVAS ════════════════════════════════ -->
+    <div class="screen" id="screenReservas">
+      <div style="padding-top:8px">
+        <!-- Resumen -->
+        <div class="res-summary">
+          <div class="res-card">
+            <div class="lbl">ACTIVAS</div>
+            <div class="val green" id="resActivas">—</div>
+          </div>
+          <div class="res-card">
+            <div class="lbl">HISTÓRICAS</div>
+            <div class="val gold" id="resHist">—</div>
+          </div>
+        </div>
+        <!-- Botones de compartir -->
+        <div class="res-share-btns">
+          <button class="res-share-btn apu" onclick="shareDisponibilidad('APUNAYNI')">📅 Disp. Apunayni</button>
+          <button class="res-share-btn salv" onclick="shareDisponibilidad('SALVAWASI')">📅 Disp. Salvawasi</button>
+        </div>
+        <!-- Calendario -->
+        <div class="cal-header">
+          <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
+          <div class="cal-month-lbl" id="calMonth">—</div>
+          <button class="cal-nav-btn" onclick="calNav(1)">›</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+          <div class="cal-weekday">L</div><div class="cal-weekday">M</div>
+          <div class="cal-weekday">X</div><div class="cal-weekday">J</div>
+          <div class="cal-weekday">V</div><div class="cal-weekday">S</div>
+          <div class="cal-weekday">D</div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <!-- Reservas activas list -->
+        <div class="card-title" style="margin-top:16px;margin-bottom:8px">Próximas reservas</div>
+        <div id="resListActivas"></div>
+      </div>
+    </div>
+
+    <!-- ══ SCREEN: CHAT IA ═════════════════════════════════ -->
+    <div class="screen" id="screenChat">
+      <div class="chat-header">
+        <div class="chat-avatar">🤖</div>
+        <div>
+          <div class="chat-agent-name">Agente Apunayni</div>
+          <div class="chat-agent-status" id="chatStatus">● Listo</div>
+        </div>
+        <button onclick="clearChat()" style="margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px">Limpiar</button>
+      </div>
+      <div class="chat-suggestions">
+        <div class="chat-chip" onclick="sendSuggestion('Saldos actuales')">💰 Saldos</div>
+        <div class="chat-chip" onclick="sendSuggestion('¿Qué reservas activas hay?')">📅 Reservas</div>
+        <div class="chat-chip" onclick="sendSuggestion('Precio para 3 personas')">🧮 Precio</div>
+        <div class="chat-chip" onclick="sendSuggestion('Disponibilidad Apunayni')">🏕 Disponibilidad</div>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-bubble assistant">
+          <div class="bubble-text">Hola 👋 Soy el agente operativo. Tengo acceso en tiempo real a reservas, saldos y precios. ¿En qué te ayudo?</div>
+          <div class="bubble-meta">Agente · ahora</div>
+        </div>
+      </div>
+      <div class="obs-panel">
+        <div class="obs-stat"><span class="obs-val" id="obsTokens">—</span><span>tokens</span></div>
+        <div class="obs-stat"><span class="obs-val" id="obsLatency">—</span><span>latencia</span></div>
+        <div class="obs-stat"><span class="obs-val" id="obsCost">—</span><span>costo</span></div>
+        <div class="obs-stat"><span class="obs-val" id="obsMsgs">0</span><span>msgs</span></div>
+        <div class="obs-stat"><span class="obs-val">sonnet-4</span><span>modelo</span></div>
+      </div>
+      <div class="chat-input-bar">
+        <textarea class="chat-input" id="chatInput" rows="1"
+          placeholder="Pregunta algo..." onkeydown="chatKeyDown(event)"
+          oninput="autoGrow(this)"></textarea>
+        <button class="chat-send-btn" onclick="sendChat()">➤</button>
+      </div>
+    </div>
+
+    <!-- Modal para detalle de reserva -->
+    <div class="modal-overlay" id="resModal" onclick="closeResModal(event)">
+      <div class="modal-card" onclick="event.stopPropagation()">
+        <div id="resModalBody"></div>
+      </div>
+    </div>
+
   <nav class="bottom-nav">
     <button class="nav-btn active" id="nav0" onclick="showScreen(0)">
-      <span class="nav-icon">◈</span>Resumen
+      <span class="nav-icon">◆</span>Resumen
     </button>
     <button class="nav-btn" id="nav1" onclick="showScreen(1)">
       <span class="nav-icon">≡</span>Flujo
     </button>
     <button class="nav-btn" id="nav2" onclick="showScreen(2)">
-      <span class="nav-icon">＋</span>Nuevo
+      <span class="nav-icon">+</span>Nuevo
     </button>
     <button class="nav-btn" id="nav3" onclick="showScreen(3)">
+      <span class="nav-icon">📊</span>Stats
+    </button>
+    <button class="nav-btn" id="nav4" onclick="showScreen(4)">
+      <span class="nav-icon">📅</span>Reservas
+    </button>
+    <button class="nav-btn" id="nav5" onclick="showScreen(5)">
+      <span class="nav-icon">🤖</span>IA
+    </button>
+    <button class="nav-btn" id="nav6" onclick="showScreen(6)">
       <span class="nav-icon">⚙</span>Config
     </button>
   </nav>
@@ -896,8 +1230,8 @@ function calcExcedenteMesActual(cf, pagadoMes, mensualDisplay) {
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
-  sheetId: localStorage.getItem('sheetId') || '',
-  apiKey:  localStorage.getItem('apiKey')  || '',
+  sheetId: localStorage.getItem('sheetId') || '1ueAv6JhzTYhJ7y3ug-N6-IbPBOfuuGL4rUKUE1WuHaQ',
+  apiKey:  localStorage.getItem('apiKey')  || 'AIzaSyAfLoJPRuh-z7NRYwQslK8YORmslzF6Eog',
   rows:    JSON.parse(localStorage.getItem('rows') || '[]'),
   lastSync: localStorage.getItem('lastSync') || null,
   currentScreen: 0,
@@ -977,7 +1311,7 @@ function showSetup() {
   document.getElementById('setupScreen').style.display = 'flex';
   document.getElementById('sheetIdInput').value   = state.sheetId;
   document.getElementById('apiKeyInput').value    = state.apiKey;
-  document.getElementById('scriptUrlInput').value = localStorage.getItem('scriptUrl') || '';
+  document.getElementById('scriptUrlInput').value = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
 }
 
 // ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
@@ -1382,7 +1716,7 @@ function renderMovimientos() {
 }
 
 function renderConfig() {
-  const scriptUrl = localStorage.getItem('scriptUrl') || '';
+  const scriptUrl = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
   document.getElementById('cfgSheetId').textContent  = state.sheetId  ? state.sheetId.slice(0,20)+'...'  : '—';
   document.getElementById('cfgApiKey').textContent   = state.apiKey   ? state.apiKey.slice(0,12)+'...'   : '—';
   document.getElementById('cfgScriptUrl').textContent= scriptUrl ? '✓ configurado' : '⚠ pendiente';
@@ -1512,17 +1846,19 @@ function resetForm() {
 
 // ─── NAVIGATION ───────────────────────────────────────────────────────────────
 function showScreen(idx) {
-  const screens = ['screenResumen','screenMovimientos','screenNueva','screenConfig'];
+  const screens = ['screenResumen','screenMovimientos','screenNueva','screenStats','screenReservas','screenChat','screenConfig'];
   screens.forEach((s,i) => {
     const el = document.getElementById(s);
     el.classList.toggle('active', i===idx);
   });
-  for(let i=0;i<4;i++) {
+  for(let i=0;i<7;i++) {
     const btn = document.getElementById('nav'+i);
     if (btn) btn.classList.toggle('active',i===idx);
   }
   state.currentScreen = idx;
-  
+  if (idx===3) initStats();
+  if (idx===4) initReservas();
+  if (idx===5) initChatScreen();
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -1704,5 +2040,476 @@ function showToast(msg, type='') {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+
+
+// ═════════════════════════════════════════════════════════
+// STATS — Ingresos / Egresos mes a mes
+// ═════════════════════════════════════════════════════════
+const MESES_STAT = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+let statsTab = 0;
+
+function setStatsTab(idx) {
+  statsTab = idx;
+  for (let i=0;i<2;i++) {
+    const t = document.getElementById('stTab'+i);
+    if (t) t.classList.toggle('active', i===idx);
+  }
+  renderStats();
+}
+
+function initStats() { renderStats(); }
+
+function getStatsMonths() {
+  const monthsSet = new Set();
+  state.rows.forEach(r => {
+    const d = parseFecha(r.fecha);
+    if (d && d.getFullYear() >= 2026) {
+      const k = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      monthsSet.add(k);
+    }
+  });
+  return [...monthsSet].sort();
+}
+
+function renderStats() {
+  const div = document.getElementById('statsContent');
+  if (!div) return;
+  const isIngresos = statsTab === 0;
+  const filterIE   = isIngresos ? 'INGRESO' : 'EGRESO';
+  const rows = state.rows.filter(r => r.ie === filterIE && (r.tipo||'').toUpperCase() !== 'SALDOS');
+  const total = rows.reduce((s,r) => s + Math.abs(r.valor), 0);
+  const months = getStatsMonths();
+  const avg = months.length ? Math.round(total / months.length) : 0;
+
+  // Monthly totals
+  const monthlyTotals = months.map(m => {
+    const [y, mo] = m.split('-').map(Number);
+    const sum = rows.filter(r => {
+      const d = parseFecha(r.fecha);
+      return d && d.getFullYear()===y && d.getMonth()+1===mo;
+    }).reduce((s,r) => s + Math.abs(r.valor), 0);
+    return {month: m, label: MESES_STAT[mo-1] + ' ' + String(y).slice(2), value: sum};
+  });
+  const maxV = Math.max(...monthlyTotals.map(m => m.value), 1);
+  const colorClass = isIngresos ? 'green' : 'red';
+  const title = isIngresos ? 'Total Ingresos' : 'Total Egresos';
+
+  let html = '<div class="stat-card">'
+    + '<div class="lbl">'+title.toUpperCase()+'</div>'
+    + '<div class="val '+colorClass+'">'+fmtCOP(total)+'</div>'
+    + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">'
+    + '<div class="stat-card" style="margin:0">'
+    + '<div class="lbl">PROMEDIO MES</div>'
+    + '<div class="val" style="font-size:17px">'+fmtCOP(avg)+'</div></div>'
+    + '<div class="stat-card" style="margin:0">'
+    + '<div class="lbl">MESES</div>'
+    + '<div class="val gold" style="font-size:17px">'+months.length+'</div></div>'
+    + '</div>'
+    + '<div class="card-title" style="margin-bottom:10px">Mes a mes</div>'
+    + '<div class="stat-card" style="padding:14px 16px">';
+
+  monthlyTotals.forEach(m => {
+    const pct = (m.value / maxV * 100).toFixed(1);
+    html += '<div class="stat-row">'
+      + '<div class="month-lbl">'+m.label+'</div>'
+      + '<div class="bar-bg"><div class="bar-fill '+colorClass+'" style="width:'+pct+'%"></div></div>'
+      + '<div class="bar-val">'+fmtCOP(m.value)+'</div>'
+      + '</div>';
+  });
+  html += '</div>';
+  div.innerHTML = html;
+}
+
+// ═════════════════════════════════════════════════════════
+// RESERVAS — Calendario + lista + compartir disponibilidad
+// ═════════════════════════════════════════════════════════
+let calYear  = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let reservasData = [];
+
+async function initReservas() {
+  await loadReservas();
+  renderResSummary();
+  renderCalendar();
+  renderResList();
+}
+
+async function loadReservas() {
+  if (!state.sheetId || !state.apiKey) return;
+  try {
+    const range = encodeURIComponent('RESERVAS!A2:R1000');
+    const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + state.sheetId
+      + '/values/' + range
+      + '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&key=' + state.apiKey;
+    const res = await fetch(url);
+    if (!res.ok) { reservasData = []; return; }
+    const data = await res.json();
+    reservasData = (data.values || []).filter(r => r[0]).map(r => ({
+      id: r[0], cabana: (r[1]||'').toUpperCase(),
+      inicio: r[2], fin: r[3],
+      nombre: r[4], cedula: r[5], telefono: r[6], email: r[7],
+      nPersonas: r[8] || 1,
+      abono: parseFloat(r[10]) || 0,
+      total: parseFloat(r[11]) || 0,
+      saldo: parseFloat(r[12]) || 0,
+      estado: (r[13]||'PENDIENTE').toUpperCase(),
+      frecuente: (r[14]||'NO').toUpperCase() === 'SI',
+      notas: r[17] || ''
+    }));
+  } catch(e) { reservasData = []; }
+}
+
+function renderResSummary() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const activas = reservasData.filter(r => {
+    const fin = new Date(r.fin);
+    return fin >= hoy && r.estado !== 'CANCELADO';
+  });
+  const hist = reservasData.filter(r => {
+    const fin = new Date(r.fin);
+    return fin < hoy && r.estado !== 'CANCELADO';
+  });
+  document.getElementById('resActivas').textContent = activas.length;
+  document.getElementById('resHist').textContent    = hist.length;
+}
+
+function calNav(delta) {
+  calMonth += delta;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const monthName = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][calMonth];
+  document.getElementById('calMonth').textContent = monthName + ' ' + calYear;
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay  = new Date(calYear, calMonth + 1, 0);
+  const startOffset = (firstDay.getDay() + 6) % 7; // Monday=0
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+
+  let html = '';
+  // Previous month days
+  const prevLastDay = new Date(calYear, calMonth, 0).getDate();
+  for (let i = startOffset - 1; i >= 0; i--) {
+    html += '<div class="cal-cell other-month"><span class="cal-day">' + (prevLastDay - i) + '</span></div>';
+  }
+  // Current month
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateObj = new Date(calYear, calMonth, d);
+    const dateStr = calYear + '-' + String(calMonth+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const dots = getReservasDotsForDate(dateObj);
+    const isToday = dateObj.getTime() === hoy.getTime();
+    html += '<div class="cal-cell' + (isToday ? ' today' : '') + '" onclick="showDayReservas(\''+dateStr+'\')">';
+    html += '<span class="cal-day">' + d + '</span>';
+    if (dots.length) {
+      html += '<div class="cal-dots">';
+      dots.forEach(c => { html += '<div class="cal-dot ' + c + '"></div>'; });
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+  // Next month fillers
+  const totalCells = startOffset + lastDay.getDate();
+  const remaining  = (7 - (totalCells % 7)) % 7;
+  for (let i = 1; i <= remaining; i++) {
+    html += '<div class="cal-cell other-month"><span class="cal-day">' + i + '</span></div>';
+  }
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function getReservasDotsForDate(date) {
+  const dotsSet = new Set();
+  reservasData.forEach(r => {
+    if (r.estado === 'CANCELADO') return;
+    const ini = new Date(r.inicio);
+    const fin = new Date(r.fin);
+    if (date >= ini && date < fin) {
+      if (r.cabana === 'APUNAYNI')  dotsSet.add('apunayni');
+      if (r.cabana === 'SALVAWASI') dotsSet.add('salvawasi');
+    }
+  });
+  return [...dotsSet];
+}
+
+function showDayReservas(dateStr) {
+  const date = new Date(dateStr + 'T00:00');
+  const matchingRes = reservasData.filter(r => {
+    if (r.estado === 'CANCELADO') return false;
+    const ini = new Date(r.inicio);
+    const fin = new Date(r.fin);
+    return date >= ini && date < fin;
+  });
+  if (!matchingRes.length) {
+    document.getElementById('resModalBody').innerHTML =
+      '<div style="text-align:center;padding:20px">'
+      + '<div style="font-size:18px;font-weight:700;margin-bottom:8px">' + formatDateES(date) + '</div>'
+      + '<div style="color:var(--text3);font-size:13px">Fecha disponible — sin reservas</div>'
+      + '<button onclick="closeResModalForced()" style="margin-top:14px;padding:8px 20px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>'
+      + '</div>';
+  } else {
+    let html = '<div style="font-size:16px;font-weight:700;margin-bottom:12px">' + formatDateES(date) + '</div>';
+    matchingRes.forEach(r => {
+      const cab = r.cabana.toLowerCase();
+      const est = r.estado.toLowerCase();
+      html += '<div style="background:var(--surface2);padding:12px;border-radius:8px;margin-bottom:10px;border-left:3px solid '+(cab==='apunayni'?'#2ecc8a':'#f0c060')+'">';
+      html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px">';
+      html += '<span class="cab '+cab+'" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba('+(cab==='apunayni'?'46,204,138':'240,192,96')+',0.15);color:'+(cab==='apunayni'?'#2ecc8a':'#f0c060')+'">'+r.cabana+'</span>';
+      html += '<span class="estado '+est+'" style="font-size:12px;font-weight:600;color:'+(est==='validado'?'var(--green)':est==='pendiente'?'var(--gold)':'var(--red)')+'">'+r.estado+'</span>';
+      html += '</div>';
+      html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px">'+r.nombre+'</div>';
+      html += '<div class="modal-row"><span class="k">Cédula</span><span class="v">'+(r.cedula||'—')+'</span></div>';
+      html += '<div class="modal-row"><span class="k">Teléfono</span><span class="v">'+(r.telefono||'—')+'</span></div>';
+      html += '<div class="modal-row"><span class="k">Personas</span><span class="v">'+r.nPersonas+'</span></div>';
+      html += '<div class="modal-row"><span class="k">Fechas</span><span class="v">'+r.inicio+' → '+r.fin+'</span></div>';
+      html += '<div class="modal-row"><span class="k">Abono</span><span class="v" style="color:var(--green)">$'+fmtCOP(r.abono)+'</span></div>';
+      if (r.total > 0) {
+        html += '<div class="modal-row"><span class="k">Total</span><span class="v">$'+fmtCOP(r.total)+'</span></div>';
+        html += '<div class="modal-row"><span class="k">Saldo</span><span class="v" style="color:var(--gold)">$'+fmtCOP(r.saldo)+'</span></div>';
+      }
+      if (r.estado === 'PENDIENTE') {
+        const precioSugerido = calcPrecio(r.nPersonas, r.frecuente);
+        html += '<button onclick="validarPago(\''+r.id+'\','+precioSugerido+')" style="width:100%;margin-top:10px;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600">✓ Validar pago</button>';
+      }
+      html += '</div>';
+    });
+    html += '<button onclick="closeResModalForced()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>';
+    document.getElementById('resModalBody').innerHTML = html;
+  }
+  document.getElementById('resModal').classList.add('show');
+}
+
+function closeResModal(e) { if (e.target.id === 'resModal') document.getElementById('resModal').classList.remove('show'); }
+function closeResModalForced() { document.getElementById('resModal').classList.remove('show'); }
+
+function calcPrecio(nPersonas, frecuente) {
+  const n = parseInt(nPersonas) || 1;
+  let precio = n === 1 ? 150000 : 200000 + Math.max(0, n - 2) * 20000;
+  if (frecuente) precio = Math.round(precio * 0.9);
+  return precio;
+}
+
+async function validarPago(id, precioSugerido) {
+  const total = prompt('Ingresa el total del alquiler:', precioSugerido);
+  if (!total) return;
+  const totalNum = parseFloat(total);
+  if (isNaN(totalNum) || totalNum <= 0) { alert('Valor inválido'); return; }
+  // Update via Apps Script
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
+  try {
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action: 'updateReserva',
+        id: id,
+        estado_pago: 'VALIDADO',
+        total_alquiler: totalNum
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      alert('Reserva validada exitosamente');
+      closeResModalForced();
+      initReservas();
+    } else {
+      alert('Error: ' + (data.error || 'desconocido'));
+    }
+  } catch(e) {
+    alert('Error de conexión: ' + e.message);
+  }
+}
+
+function renderResList() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const activas = reservasData.filter(r => {
+    const ini = new Date(r.inicio);
+    return ini >= hoy && r.estado !== 'CANCELADO';
+  }).sort((a,b) => new Date(a.inicio) - new Date(b.inicio)).slice(0, 10);
+
+  if (!activas.length) {
+    document.getElementById('resListActivas').innerHTML =
+      '<p style="color:var(--text3);text-align:center;padding:14px;font-size:13px">Sin reservas próximas</p>';
+    return;
+  }
+
+  document.getElementById('resListActivas').innerHTML = activas.map(r => {
+    return '<div class="res-list-item" onclick="showDayReservas(\''+r.inicio+'\')">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      + '<span class="cab '+r.cabana.toLowerCase()+'">'+r.cabana+'</span>'
+      + '<span class="estado '+r.estado.toLowerCase()+'" style="font-size:11px;font-weight:600">'+r.estado+'</span>'
+      + '</div>'
+      + '<div style="font-size:14px;font-weight:600">'+r.nombre+'</div>'
+      + '<div style="font-size:12px;color:var(--text3);margin-top:2px">'+r.inicio+' → '+r.fin+' · '+r.nPersonas+' personas</div>'
+      + '</div>';
+  }).join('');
+}
+
+function shareDisponibilidad(cabana) {
+  const msg = buildDisponibilidadMessage(cabana);
+  const url = 'https://wa.me/?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
+function buildDisponibilidadMessage(cabana) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+  const ocupadas = new Set();
+  reservasData.forEach(r => {
+    if (r.estado === 'CANCELADO' || r.cabana !== cabana) return;
+    const ini = new Date(r.inicio);
+    const fin = new Date(r.fin);
+    for (let d = new Date(ini); d < fin; d.setDate(d.getDate()+1)) {
+      ocupadas.add(d.toISOString().slice(0,10));
+    }
+  });
+
+  const dias = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];
+  let txt = '🏕 *DISPONIBILIDAD ' + cabana + '* 🏕\n\n';
+  let currentMonth = -1;
+  for (let d = new Date(today); d <= endDate; d.setDate(d.getDate()+1)) {
+    if (d.getMonth() !== currentMonth) {
+      currentMonth = d.getMonth();
+      const mName = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][currentMonth];
+      txt += '\n*' + mName.toUpperCase() + '*\n';
+    }
+    const iso = d.toISOString().slice(0,10);
+    if (!ocupadas.has(iso)) {
+      const dow = d.getDay();
+      const isFinde = (dow === 5 || dow === 6 || dow === 0);
+      const emoji = isFinde ? '🏕️' : '⛺️';
+      txt += emoji + ' ' + dias[dow] + ' ' + d.getDate() + '\n';
+    }
+  }
+  txt += '\n_Para reservar contáctanos por este medio._';
+  return txt;
+}
+
+function formatDateES(date) {
+  const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  return dias[date.getDay()] + ', ' + date.getDate() + ' de ' + meses[date.getMonth()] + ' de ' + date.getFullYear();
+}
+
+// ═════════════════════════════════════════════════════════
+// CHAT IA — Agente con Claude API + Observabilidad
+// ═════════════════════════════════════════════════════════
+const AGENT_URL = 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
+let chatHistory = [];
+let totalTokens = 0;
+let totalCost   = 0;
+let msgCount    = 0;
+
+function initChatScreen() {}
+
+function chatKeyDown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+}
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 90) + 'px';
+}
+function sendSuggestion(text) {
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const text  = input.value.trim();
+  if (!text) return;
+  input.value = ''; input.style.height = 'auto';
+  appendBubble('user', text, 'Tu');
+  chatHistory.push({role:'user', content:text});
+  msgCount++;
+  const typingId = showTyping();
+  setChatStatus('Pensando...');
+  try {
+    const start = Date.now();
+    const res = await fetch(AGENT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        action:'chat',
+        sessionId:'op-'+Date.now(),
+        messages:chatHistory
+      })
+    });
+    const data = await res.json();
+    const latency = Date.now() - start;
+    removeTyping(typingId);
+    if (data.error) {
+      appendBubble('assistant', 'Error: '+data.error, 'Agente');
+      setChatStatus('Error');
+      return;
+    }
+    const reply = data.reply || '';
+    chatHistory.push({role:'assistant', content:reply});
+    let displayText = reply;
+    let toolHtml = '';
+    try {
+      const parsed = JSON.parse(reply.trim());
+      if (parsed.tool) {
+        displayText = 'Ejecutando: ' + parsed.tool + '...';
+        const tr = data.toolResult || {};
+        if (tr.ok && tr.id) toolHtml = '<div class="chat-tool-result">✓ Reserva: '+tr.id+'</div>';
+        else if (tr.precio) toolHtml = '<div class="chat-tool-result">💰 $'+tr.precio.toLocaleString('es-CO')+(tr.descuento!=='ninguno'?' ('+tr.descuento+')':'')+'</div>';
+        else if (tr.error)  toolHtml = '<div class="chat-tool-result" style="color:var(--red)">'+tr.error+'</div>';
+      }
+    } catch(e) {}
+    appendBubble('assistant', displayText, 'Agente', toolHtml);
+    const usage = data.usage || {};
+    const tokens = (usage.input_tokens||0) + (usage.output_tokens||0);
+    totalTokens += tokens;
+    totalCost += data.costEstimate || 0;
+    msgCount++;
+    document.getElementById('obsTokens').textContent = totalTokens.toLocaleString();
+    document.getElementById('obsLatency').textContent = (data.latency||latency)+'ms';
+    document.getElementById('obsCost').textContent = '$'+(totalCost*1000).toFixed(2)+'m';
+    document.getElementById('obsMsgs').textContent = msgCount;
+    setChatStatus('Listo · ' + tokens + ' tok');
+  } catch(err) {
+    removeTyping(typingId);
+    appendBubble('assistant', 'No pude conectarme.', 'Agente');
+    setChatStatus('Sin conexion');
+  }
+}
+
+function appendBubble(role, text, label, extraHtml) {
+  const msgs = document.getElementById('chatMessages');
+  const now = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+  const div = document.createElement('div');
+  div.className = 'chat-bubble '+role;
+  div.innerHTML = '<div class="bubble-text">'+escChatHtml(text)+(extraHtml||'')+'</div>'
+    + '<div class="bubble-meta">'+label+' · '+now+'</div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const id = 'typing-'+Date.now();
+  const div = document.createElement('div');
+  div.id = id; div.className = 'chat-bubble assistant';
+  div.innerHTML = '<div class="chat-typing"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return id;
+}
+function removeTyping(id) { const el=document.getElementById(id); if(el) el.remove(); }
+function setChatStatus(text) { const el=document.getElementById('chatStatus'); if(el) el.textContent='● '+text; }
+function clearChat() {
+  chatHistory=[]; totalTokens=0; totalCost=0; msgCount=0;
+  document.getElementById('chatMessages').innerHTML = '<div class="chat-bubble assistant"><div class="bubble-text">Chat reiniciado.</div></div>';
+  ['obsTokens','obsLatency','obsCost'].forEach(id => { const e=document.getElementById(id); if(e) e.textContent='—'; });
+  const m=document.getElementById('obsMsgs'); if(m) m.textContent='0';
+}
+function escChatHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+}
 
 </script>
