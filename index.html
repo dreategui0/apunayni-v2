@@ -903,7 +903,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.4.0</span>
+          <span class="config-val">2.5.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -919,16 +919,16 @@ html, body {
   
     <!-- ══ SCREEN: ESTADÍSTICAS ════════════════════════════ -->
     <div class="screen" id="screenStats">
-      <!-- Espacio arriba duplicado para no taparse -->
+      <!-- Espacio arriba -->
       <div style="height:120px"></div>
-      <div id="statsContent"></div>
-      <!-- Tabs al fondo, siempre visibles -->
-      <div style="position:sticky;bottom:0;background:var(--bg);padding:18px 0 24px;border-top:1px solid var(--border);margin-top:16px;z-index:5;box-shadow:0 -10px 20px var(--bg)">
-        <div class="stat-tabs" style="margin:0">
-          <div class="stat-tab active" id="stTab0" onclick="setStatsTab(0)">📈 Ingresos</div>
-          <div class="stat-tab" id="stTab1" onclick="setStatsTab(1)">📉 Egresos</div>
-        </div>
+      <!-- Tabs en la parte superior, integrados al flujo -->
+      <div class="stat-tabs" style="margin-bottom:16px">
+        <div class="stat-tab active" id="stTab0" onclick="setStatsTab(0)">📈 Ingresos</div>
+        <div class="stat-tab" id="stTab1" onclick="setStatsTab(1)">📉 Egresos</div>
       </div>
+      <div id="statsContent"></div>
+      <!-- Selector de mes -->
+      <div id="monthDetailSection" style="margin-top:20px"></div>
     </div>
 
     <!-- ══ SCREEN: RESERVAS ════════════════════════════════ -->
@@ -2145,6 +2145,62 @@ function renderStats() {
   });
   html += '</div>';
   div.innerHTML = html;
+  // Render month detail
+  renderMonthDetail();
+}
+
+function renderMonthDetail() {
+  const div = document.getElementById('monthDetailSection');
+  if (!div) return;
+  const isIngresos = statsTab === 0;
+  const filterIE   = isIngresos ? 'INGRESO' : 'EGRESO';
+  const rows = state.rows.filter(r => r.ie === filterIE && (r.tipo||'').toUpperCase() !== 'SALDOS');
+  const months = getStatsMonths();
+  const selectId = 'monthDetailSelect';
+  const existing = document.getElementById(selectId);
+  let selected = existing ? existing.value : (months[months.length-1] || 'ALL');
+
+  let html = '<div class="card-title" style="margin-bottom:10px">Detalle por mes</div>'
+    + '<select id="'+selectId+'" onchange="renderMonthDetail()" '
+    + 'style="width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-family:var(--font-body);font-size:13px">'
+    + '<option value="ALL" '+(selected==='ALL'?'selected':'')+'>📅 Todos los meses (acumulado)</option>';
+  months.forEach(m => {
+    const [y, mo] = m.split('-').map(Number);
+    const lbl = MESES_STAT[mo-1] + ' ' + y;
+    html += '<option value="'+m+'" '+(selected===m?'selected':'')+'>'+lbl+'</option>';
+  });
+  html += '</select>';
+
+  let monthRows = rows;
+  if (selected !== 'ALL') {
+    const [yr, mo] = selected.split('-').map(Number);
+    monthRows = rows.filter(r => {
+      const d = parseFecha(r.fecha);
+      return d && d.getFullYear()===yr && d.getMonth()+1===mo;
+    });
+  }
+  const total = monthRows.reduce((s,r) => s + Math.abs(r.valor), 0);
+  const tipoSums = {};
+  monthRows.forEach(r => {
+    const t = (r.tipo||'OTROS').toUpperCase() || 'OTROS';
+    tipoSums[t] = (tipoSums[t]||0) + Math.abs(r.valor);
+  });
+  const slices = Object.entries(tipoSums)
+    .map(([label, value]) => ({label, value}))
+    .sort((a,b) => b.value - a.value);
+
+  html += '<div class="stat-card">';
+  html += '<div style="display:flex;justify-content:space-between;margin-bottom:10px">';
+  html += '<span class="lbl">'+(isIngresos?'Ingresos':'Egresos')+' del periodo</span>';
+  html += '<span style="font-weight:700;color:var('+(isIngresos?'--green':'--red')+')">'+fmtCOP(total)+'</span>';
+  html += '</div>';
+  if (slices.length > 0 && total > 0) {
+    html += pieSVG(slices, isIngresos);
+  } else {
+    html += '<p style="color:var(--text3);font-size:12px;text-align:center;padding:12px">Sin datos para este periodo</p>';
+  }
+  html += '</div>';
+  div.innerHTML = html;
 }
 
 function pieSVG(slices, isIngresos) {
@@ -2564,7 +2620,9 @@ function shareDisponibilidad(cabana) {
 
 function buildDisponibilidadMessage(cabana) {
   const today = new Date(); today.setHours(0,0,0,0);
-  const endDate = new Date(today.getFullYear(), today.getMonth() + 3, 0);
+  const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0);
+
+  // Build set of occupied dates (each "noche" is start date)
   const ocupadas = new Set();
   reservasData.forEach(r => {
     if (r.estado === 'CANCELADO' || r.cabana !== cabana) return;
@@ -2575,24 +2633,57 @@ function buildDisponibilidadMessage(cabana) {
     }
   });
 
-  const dias = ['DOM','LUN','MAR','MIE','JUE','VIE','SAB'];
-  let txt = '🏕 *DISPONIBILIDAD ' + cabana + '* 🏕\n\n';
+  const diasNom  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const mesesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+  // Festivos colombianos 2026
+  const festivos2026 = new Set([
+    '2026-01-01','2026-01-12','2026-03-23','2026-04-02','2026-04-03',
+    '2026-05-01','2026-05-18','2026-06-08','2026-06-29','2026-07-20',
+    '2026-08-07','2026-08-17','2026-10-12','2026-11-02','2026-11-16',
+    '2026-12-08','2026-12-25'
+  ]);
+
+  const cabanaLabel = cabana === 'APUNAYNI' ? 'Apunayni' : 'SalvaWasi';
+  let txt = 'Próximas fechas disponibles *' + cabanaLabel + '*\n';
+  txt += '🏕️Fin de semana y festivos\n';
+  txt += '⛺️Días en semana\n';
+
   let currentMonth = -1;
+  let currentYear  = -1;
+
   for (let d = new Date(today); d <= endDate; d.setDate(d.getDate()+1)) {
-    if (d.getMonth() !== currentMonth) {
+    if (d.getMonth() !== currentMonth || d.getFullYear() !== currentYear) {
       currentMonth = d.getMonth();
-      const mName = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][currentMonth];
-      txt += '\n*' + mName.toUpperCase() + '*\n';
+      currentYear  = d.getFullYear();
+      txt += '\n*' + mesesNom[currentMonth] + ' ' + currentYear + '*\n';
     }
     const iso = d.toISOString().slice(0,10);
-    if (!ocupadas.has(iso)) {
-      const dow = d.getDay();
-      const isFinde = (dow === 5 || dow === 6 || dow === 0);
-      const emoji = isFinde ? '🏕️' : '⛺️';
-      txt += emoji + ' ' + dias[dow] + ' ' + d.getDate() + '\n';
+    if (ocupadas.has(iso)) continue;
+
+    const next = new Date(d); next.setDate(next.getDate()+1);
+    const dowNow  = d.getDay();
+    const dowNext = next.getDay();
+
+    // Festivo: día actual es festivo, o el día siguiente lo es (porque la noche cuenta)
+    const isFestNow  = festivos2026.has(iso);
+    const isFestNext = festivos2026.has(next.toISOString().slice(0,10));
+
+    // Fin de semana: viernes-sábado, sábado-domingo, domingo-lunes (puente)
+    const isFinde = (dowNow === 5 || dowNow === 6 || dowNow === 0 ||
+                     isFestNow || isFestNext);
+
+    const emoji = isFinde ? '🏕️' : '⛺️';
+    const sufijo = (isFestNow || isFestNext) ? ' (Festivo)' : '';
+
+    // "Lunes 4 a Martes 5"
+    // If month crosses, add "(mes)"
+    let nextLabel = diasNom[dowNext] + ' ' + next.getDate();
+    if (next.getMonth() !== d.getMonth()) {
+      nextLabel = diasNom[dowNext] + ' ' + next.getDate() + ' (' + mesesNom[next.getMonth()].toLowerCase() + ')';
     }
+    txt += emoji + diasNom[dowNow] + ' ' + d.getDate() + ' a ' + nextLabel + sufijo + '\n';
   }
-  txt += '\n_Para reservar contáctanos por este medio._';
   return txt;
 }
 
