@@ -1,19 +1,19 @@
 {
-  "name": "Apunayni · Caja",
+  "name": "Apunayni",
   "short_name": "Apunayni",
-  "description": "Registro de flujo de caja Apunayni & Salvawasi",
-  "start_url": "/apunayni-app/",
-  "scope": "/apunayni-app/",
+  "description": "Gestión de cabañas Apunayni — Contabilidad, Reservas y Agente IA",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0a0a14",
-  "theme_color": "#0a0a14",
+  "background_color": "#0a0e1a",
+  "theme_color": "#0a0e1a",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
