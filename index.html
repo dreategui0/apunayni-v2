@@ -946,7 +946,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.0</span>
+          <span class="config-val">2.7.1</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1812,11 +1812,16 @@ function renderMovimientos() {
 
 function renderConfig() {
   const scriptUrl = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
-  document.getElementById('cfgSheetId').textContent  = state.sheetId  ? state.sheetId.slice(0,20)+'...'  : '—';
-  document.getElementById('cfgApiKey').textContent   = state.apiKey   ? state.apiKey.slice(0,12)+'...'   : '—';
-  document.getElementById('cfgScriptUrl').textContent= scriptUrl ? '✓ configurado' : '⚠ pendiente';
-  document.getElementById('cfgScriptUrl').style.color= scriptUrl ? 'var(--green)' : 'var(--red)';
-  document.getElementById('cfgLastSync').textContent = state.lastSync ? fmtTime(state.lastSync) : '—';
+  const set = (id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = val;
+    if (color) el.style.color = color;
+  };
+  set('cfgSheetId',  state.sheetId  ? state.sheetId.slice(0,20)+'...'  : '—');
+  set('cfgApiKey',   state.apiKey   ? state.apiKey.slice(0,12)+'...'   : '—');
+  set('cfgScriptUrl', scriptUrl ? '✓ configurado' : '⚠ pendiente', scriptUrl ? 'var(--green)' : 'var(--red)');
+  set('cfgLastSync', state.lastSync ? fmtTime(state.lastSync) : '—');
 }
 
 function renderGlosario() {
