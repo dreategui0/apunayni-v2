@@ -785,11 +785,7 @@ html, body {
     <input id="sheetIdInput" class="form-input" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgVE2upms" style="margin-bottom:0">
   </div>
   <div class="setup-step">
-    <div class="setup-step-label">② API Key de Google (para leer)</div>
-    <input id="apiKeyInput" class="form-input" placeholder="AIzaSy..." style="margin-bottom:0">
-  </div>
-  <div class="setup-step">
-    <div class="setup-step-label">③ URL del Apps Script (para escribir)</div>
+    <div class="setup-step-label">② URL del Apps Script</div>
     <input id="scriptUrlInput" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" style="margin-bottom:0">
   </div>
   <button class="submit-btn" onclick="saveConfig()" style="margin-top:24px">Conectar →</button>
@@ -950,7 +946,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.6.0</span>
+          <span class="config-val">2.7.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1287,7 +1283,7 @@ function calcExcedenteMesActual(cf, pagadoMes, mensualDisplay) {
 // ─── STATE ────────────────────────────────────────────────────────────────────
 let state = {
   sheetId: localStorage.getItem('sheetId') || '1ueAv6JhzTYhJ7y3ug-N6-IbPBOfuuGL4rUKUE1WuHaQ',
-  apiKey:  localStorage.getItem('apiKey')  || 'AIzaSyAfLoJPRuh-z7NRYwQslK8YORmslzF6Eog',
+  apiKey:  localStorage.getItem('apiKey')  || '',
   rows:    JSON.parse(localStorage.getItem('rows') || '[]'),
   lastSync: localStorage.getItem('lastSync') || null,
   currentScreen: 0,
@@ -1326,7 +1322,7 @@ function parseSheetNumber(raw) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  if (!state.sheetId || !state.apiKey) {
+  if (!state.sheetId || !localStorage.getItem('scriptUrl')) {
     showSetup();
   } else {
     initApp();
@@ -1362,12 +1358,14 @@ function initApp() {
 // ─── CONFIG ───────────────────────────────────────────────────────────────────
 function saveConfig() {
   const sid    = document.getElementById('sheetIdInput').value.trim();
-  const key    = document.getElementById('apiKeyInput').value.trim();
+  const apikeyEl = document.getElementById('apiKeyInput');
+  const key    = apikeyEl ? apikeyEl.value.trim() : '';
   const script = document.getElementById('scriptUrlInput').value.trim();
-  if (!sid || !key) { showToast('Completa Sheet ID y API Key', 'error'); return; }
-  state.sheetId = sid; state.apiKey = key;
+  if (!sid || !script) { showToast('Completa Sheet ID y URL del Apps Script', 'error'); return; }
+  state.sheetId = sid;
+  state.apiKey = key; // optional, kept for backwards compat
   localStorage.setItem('sheetId', sid);
-  localStorage.setItem('apiKey', key);
+  if (key) localStorage.setItem('apiKey', key);
   if (script) localStorage.setItem('scriptUrl', script);
   initApp();
 }
@@ -1380,28 +1378,60 @@ function showSetup() {
 }
 
 // ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
+function getUserEmail() {
+  const sess = getAuthSession();
+  return sess ? sess.email : null;
+}
+
 async function syncData() {
-  if (!state.sheetId || !state.apiKey) return;
+  const userEmail = getUserEmail();
+  if (!userEmail) { setStatus('error', 'Sesión inválida'); return; }
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) { setStatus('error', 'Falta URL del Apps Script'); return; }
   setStatus('', 'Sincronizando...');
   document.getElementById('syncBtn').classList.add('syncing');
   try {
-    const range = encodeURIComponent('FLUJO!A4:H2000');
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${state.sheetId}/values/${range}?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&key=${state.apiKey}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action: 'readDashboard', userEmail: userEmail})
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const vals = data.values || [];
-    state.rows = vals.filter(r => r[0] && r[1]).map(r => ({
-      fecha: r[0] || '', valor: parseSheetNumber(r[1]),
-      desc:  (r[2]||'').trim(), medio: (r[3]||'').trim().toUpperCase(),
-      tipo:  (r[4]||'').trim().toUpperCase(), ie: (r[5]||'').trim().toUpperCase(),
-      notas: r[7] || ''
-    })).filter(r => !isNaN(r.valor));
+    if (data.error) {
+      if (data.authRequired) {
+        localStorage.removeItem('apunayni_auth_v1');
+        location.reload();
+        return;
+      }
+      throw new Error(data.error);
+    }
+    state.rows = (data.flujo || []).map(r => ({
+      fecha: r.fecha || '',
+      valor: parseFloat(r.valor) || 0,
+      desc:  (r.desc || '').trim(),
+      medio: (r.medio || '').trim().toUpperCase(),
+      tipo:  (r.tipo || '').trim().toUpperCase(),
+      ie:    (r.ie || '').trim().toUpperCase(),
+      notas: r.notas || ''
+    })).filter(r => r.valor !== 0 || r.desc);
     localStorage.setItem('rows', JSON.stringify(state.rows));
+    if (data.reservas) {
+      reservasData = data.reservas.map(r => ({
+        id: r.id, cabana: r.cabana,
+        inicio: r.inicio, fin: r.fin,
+        nombre: r.nombre, cedula: r.cedula,
+        telefono: r.telefono, email: r.email,
+        nPersonas: r.nPersonas, abono: r.abono,
+        total: r.total, saldo: r.saldo,
+        estado: r.estado, frecuente: r.frecuente,
+        notas: r.notas
+      }));
+    }
     state.lastSync = new Date().toISOString();
     localStorage.setItem('lastSync', state.lastSync);
     renderAll();
-    setStatus('online', `Actualizado ${fmtTime(state.lastSync)}`);
+    setStatus('online', 'Actualizado ' + fmtTime(state.lastSync));
   } catch(e) {
     setStatus('error', 'Error al sincronizar — ' + e.message);
   }
@@ -2313,28 +2343,39 @@ async function initReservas() {
 }
 
 async function loadReservas() {
-  if (!state.sheetId || !state.apiKey) return;
+  const userEmail = getUserEmail();
+  if (!userEmail) { reservasData = []; return; }
+  const scriptUrl = localStorage.getItem('scriptUrl');
+  if (!scriptUrl) { reservasData = []; return; }
   try {
-    const range = encodeURIComponent('RESERVAS!A2:R1000');
-    const url = 'https://sheets.googleapis.com/v4/spreadsheets/' + state.sheetId
-      + '/values/' + range
-      + '?valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=FORMATTED_STRING&key=' + state.apiKey;
-    const res = await fetch(url);
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action: 'readReservas', userEmail: userEmail})
+    });
     if (!res.ok) { reservasData = []; return; }
     const data = await res.json();
-    reservasData = (data.values || []).filter(r => r[0]).map(r => ({
-      id: r[0], cabana: (r[1]||'').toUpperCase(),
-      inicio: r[2], fin: r[3],
-      nombre: r[4], cedula: r[5], telefono: r[6], email: r[7],
-      nPersonas: r[8] || 1,
-      abono: parseFloat(r[10]) || 0,
-      total: parseFloat(r[11]) || 0,
-      saldo: parseFloat(r[12]) || 0,
-      estado: (r[13]||'PENDIENTE').toUpperCase(),
-      frecuente: (r[14]||'NO').toUpperCase() === 'SI',
-      notas: r[17] || ''
+    if (data.error) {
+      if (data.authRequired) {
+        localStorage.removeItem('apunayni_auth_v1');
+        location.reload();
+        return;
+      }
+      reservasData = [];
+      return;
+    }
+    reservasData = (data.rows || []).map(r => ({
+      id: r.id, cabana: r.cabana,
+      inicio: r.inicio, fin: r.fin,
+      nombre: r.nombre, cedula: r.cedula,
+      telefono: r.telefono, email: r.email,
+      nPersonas: r.nPersonas, abono: r.abono,
+      total: r.total, saldo: r.saldo,
+      estado: r.estado, frecuente: r.frecuente,
+      notas: r.notas
     }));
   } catch(e) { reservasData = []; }
+}
 }
 
 function renderResSummary() {
@@ -2542,7 +2583,7 @@ async function confirmarValidacion(id) {
       method: 'POST',
       headers: {'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
-        action: 'updateReserva',
+        action: 'updateReserva', userEmail: getUserEmail(),
         id: id,
         estado_pago: 'VALIDADO',
         total_alquiler: total,
@@ -2584,7 +2625,7 @@ async function nuevaReserva(fechaInicio, cabana) {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
-        action:'createReserva',
+        action:'createReserva', userEmail: getUserEmail(),
         cabana, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
         nombre, n_personas: nPersonas, abono, telefono, cedula
       })
@@ -2618,7 +2659,7 @@ async function cancelarReserva(id) {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
-        action:'updateReserva',
+        action:'updateReserva', userEmail: getUserEmail(),
         id,
         estado_pago: 'CANCELADO',
         notas: 'Cancelada. ' + motivo + ' Reembolso: ' + pct + '%'
@@ -2789,6 +2830,7 @@ async function sendChat() {
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action:'chat',
+        userEmail: getUserEmail(),
         sessionId:'op-'+Date.now(),
         messages:chatHistory
       })
