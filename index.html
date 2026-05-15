@@ -735,9 +735,46 @@ html, body {
   to   { opacity:1; transform: none; }
 }
 </style>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
+  <!-- ══ OAUTH LOGIN OVERLAY ═══════════════════════════════ -->
+  <div id="loginOverlay" style="position:fixed;inset:0;background:linear-gradient(180deg,#0a0e1a 0%,#0f1729 100%);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;padding:30px">
+    <div style="text-align:center;max-width:340px;width:100%">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:48px;font-weight:600;margin-bottom:6px">
+        <span style="color:#f5f5f0">Apu</span><span style="color:#f0c060;font-style:italic">nayni</span>
+      </div>
+      <div style="color:#8090a8;font-size:13px;margin-bottom:40px">Sistema de gestión</div>
+      
+      <div id="loginContent">
+        <div style="background:rgba(20,30,50,0.6);border:1px solid rgba(255,255,255,0.08);border-radius:14px;padding:24px 20px;margin-bottom:18px">
+          <div style="font-size:14px;color:#c5cad5;margin-bottom:18px">Inicia sesión para continuar</div>
+          <div id="googleSignInBtn" style="display:flex;justify-content:center"></div>
+        </div>
+        <div style="color:#5a6678;font-size:11px;line-height:1.5">
+          Solo correos autorizados tienen acceso<br>
+          Contacta al administrador si necesitas acceder
+        </div>
+      </div>
+      
+      <div id="loginError" style="display:none;background:rgba(255,95,109,0.1);border:1px solid #ff5f6d;border-radius:8px;padding:14px;color:#ff5f6d;font-size:13px;margin-top:14px">
+        <strong>Acceso denegado</strong><br>
+        <span id="loginErrorDetail">Este correo no está autorizado.</span>
+        <button onclick="resetLogin()" style="display:block;margin:12px auto 0;padding:6px 16px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);color:#fff;border-radius:6px;cursor:pointer;font-size:12px">Intentar con otra cuenta</button>
+      </div>
+      
+      <div id="loginChecking" style="display:none;color:#8090a8;font-size:13px;margin-top:14px">
+        <div style="display:inline-block;width:14px;height:14px;border:2px solid #f0c060;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:8px"></div>
+        Verificando acceso...
+      </div>
+    </div>
+  </div>
+  <style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+
 <!-- Setup screen (shown on first launch) -->
 <div id="setupScreen" class="setup-screen" style="display:none">
   <div class="setup-logo">Apunayni</div>
@@ -871,6 +908,16 @@ html, body {
 
     <!-- ── SCREEN: CONFIGURACIÓN ──────────────────────────── -->
     <div class="screen" id="screenConfig">
+      <div id="userInfoBox" style="background:linear-gradient(135deg,rgba(46,204,138,0.1),rgba(124,110,255,0.1));border:1px solid var(--border2);border-radius:12px;padding:14px 16px;margin-bottom:18px;margin-top:80px;display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#2ecc8a,#f0c060);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#0a0e1a" id="userInitial">—</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700" id="userName">—</div>
+          <div style="font-size:11px;color:var(--text3)" id="userEmail">—</div>
+          <div style="font-size:10px;color:var(--gold);margin-top:2px" id="userRol">—</div>
+        </div>
+        <button onclick="logout()" style="padding:6px 12px;background:rgba(255,95,109,0.1);border:1px solid var(--red);color:var(--red);border-radius:14px;font-size:11px;font-weight:600;cursor:pointer">Cerrar sesión</button>
+      </div>
+
       <div class="card" style="margin-top:8px">
         <div class="card-title">Conexión</div>
         <div class="config-row">
@@ -903,7 +950,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.5.0</span>
+          <span class="config-val">2.6.0</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1288,6 +1335,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function initApp() {
   document.getElementById('setupScreen').style.display = 'none';
+  // Display user info from session
+  const sess = getAuthSession();
+  if (sess) {
+    const initial = (sess.nombre || sess.email).charAt(0).toUpperCase();
+    const el1 = document.getElementById('userInitial');  if (el1) el1.textContent = initial;
+    const el2 = document.getElementById('userName');     if (el2) el2.textContent = sess.nombre || '—';
+    const el3 = document.getElementById('userEmail');    if (el3) el3.textContent = sess.email;
+    const el4 = document.getElementById('userRol');      if (el4) el4.textContent = sess.rol;
+  }
   // Set Google Sheets direct link
   const sheetsLink = document.getElementById('sheetsLink');
   if (sheetsLink && state.sheetId) {
@@ -2831,5 +2887,165 @@ function escChatHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/\n/g,'<br>');
 }
+
+
+// ═════════════════════════════════════════════════════════
+// OAUTH AUTHENTICATION — Google Identity Services
+// ═════════════════════════════════════════════════════════
+const GOOGLE_CLIENT_ID = '726071100998-6rv65tj8tvv5dqk9ec42o90ajort2651.apps.googleusercontent.com';
+const AUTH_STORAGE_KEY = 'apunayni_auth_v1';
+
+function getAuthSession() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    const sess = JSON.parse(raw);
+    // 7 day session
+    if (Date.now() - sess.timestamp > 7 * 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      return null;
+    }
+    return sess;
+  } catch(e) { return null; }
+}
+
+function saveAuthSession(email, nombre, rol) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+    email, nombre, rol, timestamp: Date.now()
+  }));
+}
+
+function logout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  location.reload();
+}
+
+function showLoginOverlay() {
+  document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+function hideLoginOverlay() {
+  document.getElementById('loginOverlay').style.display = 'none';
+}
+
+function resetLogin() {
+  document.getElementById('loginError').style.display = 'none';
+  document.getElementById('loginContent').style.display = 'block';
+  document.getElementById('loginChecking').style.display = 'none';
+  // Re-render button
+  if (window.google && window.google.accounts) {
+    google.accounts.id.disableAutoSelect();
+    initGoogleAuth();
+  }
+}
+
+function decodeJWT(token) {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    return JSON.parse(decodeURIComponent(escape(decoded)));
+  } catch(e) { return null; }
+}
+
+async function verifyEmailWithServer(email) {
+  const scriptUrl = localStorage.getItem('scriptUrl') ||
+    'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
+  try {
+    const res = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify({action: 'verifyUser', email: email})
+    });
+    const data = await res.json();
+    return data;
+  } catch(e) {
+    return {authorized: false, error: 'Sin conexión: ' + e.message};
+  }
+}
+
+async function handleGoogleCredential(response) {
+  document.getElementById('loginContent').style.display = 'none';
+  document.getElementById('loginChecking').style.display = 'block';
+  document.getElementById('loginError').style.display = 'none';
+  
+  const payload = decodeJWT(response.credential);
+  if (!payload || !payload.email) {
+    showLoginError('Token inválido. Intenta de nuevo.');
+    return;
+  }
+  
+  const email = payload.email.toLowerCase().trim();
+  const nombre = payload.name || email.split('@')[0];
+  
+  const verifyResult = await verifyEmailWithServer(email);
+  
+  if (verifyResult.authorized) {
+    saveAuthSession(email, verifyResult.nombre || nombre, verifyResult.rol || 'OPERADOR');
+    hideLoginOverlay();
+    // Force re-init of app
+    if (typeof initApp === 'function' && state.sheetId && state.apiKey) {
+      initApp();
+    } else {
+      showSetup();
+    }
+  } else {
+    showLoginError(verifyResult.error ||
+      'El correo ' + email + ' no está autorizado.\nContacta al administrador.');
+  }
+}
+
+function showLoginError(msg) {
+  document.getElementById('loginChecking').style.display = 'none';
+  document.getElementById('loginContent').style.display = 'none';
+  document.getElementById('loginError').style.display = 'block';
+  document.getElementById('loginErrorDetail').innerText = msg;
+}
+
+function initGoogleAuth() {
+  if (!window.google || !window.google.accounts) {
+    setTimeout(initGoogleAuth, 200);
+    return;
+  }
+  google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: false,
+    cancel_on_tap_outside: false
+  });
+  const btnDiv = document.getElementById('googleSignInBtn');
+  if (btnDiv) {
+    btnDiv.innerHTML = '';
+    google.accounts.id.renderButton(btnDiv, {
+      theme: 'filled_black',
+      size: 'large',
+      type: 'standard',
+      shape: 'pill',
+      text: 'continue_with',
+      logo_alignment: 'left',
+      width: 280
+    });
+  }
+}
+
+// Check auth on page load — BEFORE anything else runs
+(function authGate() {
+  const sess = getAuthSession();
+  if (sess && sess.email) {
+    // Already logged in
+    return;
+  }
+  // Not logged in — show overlay
+  // Wait for DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      showLoginOverlay();
+      initGoogleAuth();
+    });
+  } else {
+    showLoginOverlay();
+    initGoogleAuth();
+  }
+})();
 
 </script>
