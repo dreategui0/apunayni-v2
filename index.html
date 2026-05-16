@@ -946,7 +946,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.3</span>
+          <span class="config-val">2.7.5</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1134,10 +1134,10 @@ const TIPOS   = ['APUNAYNI','SALVAWASI','OPERATIVO','SALARIOS','TIENDA','REEMBOL
 // tipos: 'fixed'=monto exacto acumula, 'variable'=cualquier pago cuenta, 
 //        'auto'=siempre pagado, 'accum'=acumula histórico, 'lili', 'alejo'
 const COSTOS_FIJOS_DEF = [
-  { nombre:'INTERNET',          mensual: 180000,  keyword:'INTERNET',         tipo:'fixed'    },
+  { nombre:'INTERNET',          mensual: 180000,  keyword:'INTERNET',         tipo:'variable' },
   { nombre:'GAS',               mensual: 109000,  keyword:'GAS',              tipo:'variable' },
   { nombre:'SERVICIOS EPM',     mensual: 68000,   keyword:'SERVICIOS EPM',    tipo:'variable' },
-  { nombre:'SEGUROS',           mensual: 113050,  keyword:'SEGUROS',          tipo:'auto'     },
+  { nombre:'SEGUROS',           mensual: 113050,  keyword:'SEGUROS',          tipo:'variable' },
   { nombre:'CUOTA DE MANEJO',   mensual: 15000,   keyword:'CUOTA DE MANEJO',  tipo:'fixed'    },
   { nombre:'CONTABILIDAD',      mensual: 200000,  keyword:'CONTABILIDAD',     tipo:'accum'    },
   { nombre:'SALARIO LILIANA',   mensual: null,    keyword:'SALARIO-LILIANA',  tipo:'lili'     },
@@ -1451,23 +1451,40 @@ async function syncData() {
 }
 
 async function appendRow(rowData) {
-  // Uses Google Apps Script Web App as proxy for writing
-  // (API Key only allows reading; writing requires OAuth or Apps Script)
+  // POST to Apps Script (Capa 2 secure architecture)
   const scriptUrl = localStorage.getItem('scriptUrl');
   if (!scriptUrl) {
     throw new Error('Falta la URL del Apps Script. Ve a Config y agrégala.');
   }
-  const params = new URLSearchParams({
-    sheetId: state.sheetId,
-    row: JSON.stringify(rowData)
+  const userEmail = getUserEmail();
+  if (!userEmail) {
+    throw new Error('Sesión no válida. Inicia sesión de nuevo.');
+  }
+  // rowData = [fecha, valor, desc, medio, tipo, ie, notas]
+  const payload = {
+    action: 'appendRow',
+    userEmail: userEmail,
+    fecha: rowData[0],
+    valor: rowData[1],
+    desc:  rowData[2],
+    medio: rowData[3],
+    tipo:  rowData[4],
+    ie:    rowData[5],
+    notas: rowData[6] || ''
+  };
+  const res = await fetch(scriptUrl, {
+    method: 'POST',
+    headers: {'Content-Type':'text/plain;charset=utf-8'},
+    body: JSON.stringify(payload)
   });
-  const url = `${scriptUrl}?${params.toString()}`;
-  const res = await fetch(url, { method: 'GET' });
-  const text = await res.text();
-  let data;
-  try { data = JSON.parse(text); } catch(e) { data = { status: text }; }
-  if (data.status !== 'ok') {
-    throw new Error(data.error || 'Error al guardar en el Sheet');
+  const data = await res.json();
+  if (data.error) {
+    if (data.authRequired) {
+      localStorage.removeItem('apunayni_auth_v1');
+      location.reload();
+      return;
+    }
+    throw new Error(data.error);
   }
   return data;
 }
@@ -1550,22 +1567,25 @@ function renderCostosFijos() {
       mensualDisplay = cf.mensual;
       pendienteMes   = Math.max(0, cf.mensual - exAnt - pagadoMes);
     } else if (cf.tipo==='variable') {
+      // VARIABLE: cualquier pago marca como pagado, sin deuda ni excedente arrastrado
       mensualDisplay = cf.mensual;
-      pendienteMes   = (pagadoMes > 0 || exAnt >= cf.mensual) ? 0 : cf.mensual;
+      pendienteMes   = pagadoMes > 0 ? 0 : cf.mensual;
     } else {
       // fixed
       mensualDisplay = cf.mensual;
       pendienteMes   = Math.max(0, cf.mensual - exAnt - pagadoMes);
     }
 
-    const totalEsperado  = mensualDisplay + deudaAnt;
-    const totalRecibido  = pagadoMes + exAnt;
+    // Para variables, ignorar completamente deudas/excedentes previos
+    const efDeudaAnt = (cf.tipo==='variable') ? 0 : deudaAnt;
+    const efExAnt    = (cf.tipo==='variable') ? 0 : exAnt;
+    const totalEsperado  = mensualDisplay + efDeudaAnt;
+    const totalRecibido  = pagadoMes + efExAnt;
     const exMes          = (cf.tipo!=='variable') ? Math.max(0, totalRecibido - totalEsperado) : 0;
-    const totalPendiente = pendienteMes + deudaAnt;
+    const totalPendiente = pendienteMes + efDeudaAnt;
 
-    // "efectivamentePagado" = lo que realmente cubre la deuda de este mes
-    // = pagos del mes + crédito del mes anterior
-    const efectivamentePagado = pagadoMes + exAnt;
+    // "efectivamentePagado" = pagos del mes (+ crédito del mes anterior si NO es variable)
+    const efectivamentePagado = pagadoMes + efExAnt;
 
     let estado, dotClass;
     if (exMes > 0) {
@@ -1582,16 +1602,16 @@ function renderCostosFijos() {
       estado = 'PENDIENTE'; dotClass = 'pendiente';
     }
 
-    if (deudaAnt>0 && totalPendiente>0 && deudaAnt>exMes) {
-      const deudaAunPendiente = Math.min(deudaAnt, totalPendiente);
+    if (cf.tipo!=='variable' && efDeudaAnt>0 && totalPendiente>0 && efDeudaAnt>exMes) {
+      const deudaAunPendiente = Math.min(efDeudaAnt, totalPendiente);
       alertas.push({nombre:cf.nombre, montoPrev:deudaAunPendiente, montoMes:pendienteMes});
     }
 
     let balanceHtml;
     if (exMes>0) {
       balanceHtml = `<div class="costo-balance-val ex">↑ ${fmtCOP(exMes)} abono sig.</div>`;
-    } else if (totalPendiente===0 && exAnt>0 && pagadoMes===0) {
-      // Covered entirely by credit from previous month
+    } else if (cf.tipo!=='variable' && totalPendiente===0 && efExAnt>0 && pagadoMes===0) {
+      // Covered entirely by credit from previous month (no aplica a variables)
       balanceHtml = `<div class="costo-balance-val ok">✓ crédito aplicado</div>`;
     } else if (totalPendiente===0) {
       balanceHtml = `<div class="costo-balance-val ok">✓</div>`;
@@ -1628,10 +1648,13 @@ function renderCostosFijos() {
     else if (cf.tipo==='accum') { mensual=cf.mensual; pendiente=Math.max(0,cf.mensual-pagadoMes); }
     else if (cf.tipo==='variable') { mensual=cf.mensual; pendiente=pagadoMes>0?0:cf.mensual; }
     else { mensual=cf.mensual; pendiente=Math.max(0,cf.mensual-pagadoMes); }
-    const totalRec  = pagadoMes + exAnt;
-    const totalEsp  = mensual + deudaAnt;
+    // Para variables, no acumular deudas ni excedentes anteriores
+    const sumDeudaAnt = (cf.tipo==='variable') ? 0 : deudaAnt;
+    const sumExAnt    = (cf.tipo==='variable') ? 0 : exAnt;
+    const totalRec  = pagadoMes + sumExAnt;
+    const totalEsp  = mensual + sumDeudaAnt;
     const exMes     = (cf.tipo!=='variable') ? Math.max(0, totalRec-totalEsp) : 0;
-    const totPend   = pendiente + deudaAnt;
+    const totPend   = pendiente + sumDeudaAnt;
     if (exMes===0 && totPend>0) {
       totalPendienteMes    += pendiente;
       totalDeudaArrastrada += Math.min(deudaAnt, totPend);
