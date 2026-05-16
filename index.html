@@ -946,7 +946,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.1</span>
+          <span class="config-val">2.7.2</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1322,6 +1322,14 @@ function parseSheetNumber(raw) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
+  // Auth gate must run FIRST. If no session, show login and stop.
+  const sess = getAuthSession();
+  if (!sess || !sess.email) {
+    showLoginOverlay();
+    initGoogleAuth();
+    return;
+  }
+  // Authenticated — proceed to setup or app
   if (!state.sheetId || !localStorage.getItem('scriptUrl')) {
     showSetup();
   } else {
@@ -1371,10 +1379,14 @@ function saveConfig() {
 }
 
 function showSetup() {
-  document.getElementById('setupScreen').style.display = 'flex';
-  document.getElementById('sheetIdInput').value   = state.sheetId;
-  document.getElementById('apiKeyInput').value    = state.apiKey;
-  document.getElementById('scriptUrlInput').value = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
+  const setupEl = document.getElementById('setupScreen');
+  if (setupEl) setupEl.style.display = 'flex';
+  const sidEl = document.getElementById('sheetIdInput');
+  if (sidEl) sidEl.value = state.sheetId || '';
+  const apikeyEl = document.getElementById('apiKeyInput');
+  if (apikeyEl) apikeyEl.value = state.apiKey || '';
+  const scriptEl = document.getElementById('scriptUrlInput');
+  if (scriptEl) scriptEl.value = localStorage.getItem('scriptUrl') || 'https://script.google.com/macros/s/AKfycbww-jbiVOUbMSsOvr3jwmfpaiPVa68fJ_M6eHbSxVQ_RKlzJHOBaCOXK5sTIQL6OWub/exec';
 }
 
 // ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
@@ -3029,8 +3041,8 @@ async function handleGoogleCredential(response) {
   if (verifyResult.authorized) {
     saveAuthSession(email, verifyResult.nombre || nombre, verifyResult.rol || 'OPERADOR');
     hideLoginOverlay();
-    // Force re-init of app
-    if (typeof initApp === 'function' && state.sheetId && state.apiKey) {
+    // Force re-init: setup if config missing, otherwise initApp
+    if (state.sheetId && localStorage.getItem('scriptUrl')) {
       initApp();
     } else {
       showSetup();
@@ -3074,24 +3086,7 @@ function initGoogleAuth() {
   }
 }
 
-// Check auth on page load — BEFORE anything else runs
-(function authGate() {
-  const sess = getAuthSession();
-  if (sess && sess.email) {
-    // Already logged in
-    return;
-  }
-  // Not logged in — show overlay
-  // Wait for DOM ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      showLoginOverlay();
-      initGoogleAuth();
-    });
-  } else {
-    showLoginOverlay();
-    initGoogleAuth();
-  }
-})();
+// Auth gate now lives inside DOMContentLoaded above — this block is intentionally empty
+// (function authGate() { ... })();  // moved into main init handler
 
 </script>
