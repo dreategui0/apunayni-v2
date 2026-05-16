@@ -946,7 +946,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.2</span>
+          <span class="config-val">2.7.3</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1991,35 +1991,29 @@ function fmtFecha(fechaStr) {
 
 function parseFecha(fechaStr) {
   if (!fechaStr) return null;
+  if (fechaStr instanceof Date) return isNaN(fechaStr) ? null : fechaStr;
   if (typeof fechaStr === 'number') {
-    // Excel serial date: days since Dec 30 1899
     const d = new Date(Math.round((fechaStr - 25569) * 86400 * 1000));
     return isNaN(d) ? null : d;
   }
-  if (typeof fechaStr === 'string' && fechaStr.includes('/')) {
+  if (typeof fechaStr !== 'string') return null;
+  // ISO format: 2026-02-01 or 2026-02-01T...
+  if (/^\d{4}-\d{2}-\d{2}/.test(fechaStr)) {
+    const [y, m, d] = fechaStr.slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  // DD/MM/YYYY or MM/DD/YYYY
+  if (fechaStr.includes('/')) {
     const parts = fechaStr.split('/');
     if (parts.length === 3) {
       const [a, b, year] = parts.map(Number);
-      // Auto-detect format: if first part > 12 → must be DD/MM/YYYY
-      // If second part > 12 → must be MM/DD/YYYY
-      // Otherwise default to DD/MM/YYYY (Colombian locale)
-      let day, month;
-      if (a > 12) {       // e.g. "14/04/2026" → DD/MM/YYYY
-        day = a; month = b;
-      } else if (b > 12) { // e.g. "04/14/2026" → MM/DD/YYYY
-        day = b; month = a;
-      } else {             // ambiguous, assume DD/MM/YYYY
-        day = a; month = b;
-      }
-      const d = new Date(year, month - 1, day);
-      return isNaN(d) ? null : d;
+      const yr = year < 100 ? 2000 + year : year;
+      if (a > 12) return new Date(yr, b - 1, a);
+      if (b > 12) return new Date(yr, a - 1, b);
+      return new Date(yr, b - 1, a);
     }
   }
-  if (typeof fechaStr === 'string' && fechaStr.includes('-')) {
-    // ISO format YYYY-MM-DD
-    const d = new Date(fechaStr + 'T00:00:00');
-    return isNaN(d) ? null : d;
-  }
+  // Native Date string like "Sun Feb 01 2026 19:00:00 GMT-0500" or any other parseable format
   const d = new Date(fechaStr);
   return isNaN(d) ? null : d;
 }
