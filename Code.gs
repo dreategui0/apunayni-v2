@@ -1,366 +1,695 @@
-/**
- * Apunayni / Salvawasi / Intiwasi — Apps Script backend
- *
- * Hoja de cálculo: APUNAYNI_v2
- * Tabs requeridas: FLUJO, RESERVAS, LOGS_IA, USUARIOS
- *
- * RESERVAS — columnas (fila 1):
- *   A:ID  B:CABANA  C:INICIO  D:FIN  E:NOMBRE  F:CEDULA  G:TELEFONO
- *   H:EMAIL  I:N_PERSONAS  J:ABONO  K:TOTAL  L:SALDO  M:ESTADO
- *   N:FRECUENTE  O:NOTAS  P:FECHA_CREACION
- */
+// ============================================================
+// APUNAYNI v2 — Google Apps Script
+// Proxy seguro: contabilidad + agente IA + reservas
+// ============================================================
 
-// ── Configuración ──────────────────────────────────────────────────────────
-const SHEET_ID        = SpreadsheetApp.getActiveSpreadsheet().getId();
-const TAB_FLUJO       = 'FLUJO';
-const TAB_RESERVAS    = 'RESERVAS';
-const TAB_LOGS        = 'LOGS_IA';
-const TAB_USUARIOS    = 'USUARIOS';
-const CABANAS_VALIDAS = ['APUNAYNI', 'SALVAWASI', 'INTIWASI'];
+var CLAUDE_API_KEY = 'TU_CLAUDE_API_KEY_AQUI'; // Reemplaza con tu API key real (no subir al repo)
+var SHEET_ID       = '1ueAv6JhzTYhJ7y3ug-N6-IbPBOfuuGL4rUKUE1WuHaQ';
+var CLAUDE_MODEL   = 'claude-sonnet-4-5';
 
-// ── Punto de entrada HTTP ──────────────────────────────────────────────────
+// ── ROUTER PRINCIPAL ─────────────────────────────────────────
+function doGet(e) {
+  var action = (e.parameter && e.parameter.action) ? e.parameter.action : '';
+  if (action === 'ping') return jsonResponse({status: 'ok', version: '2.1'});
+  return jsonResponse({error: 'GET no soportado'});
+}
+
 function doPost(e) {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Content-Type': 'application/json'
+  try {
+    var data   = JSON.parse(e.postData.contents);
+    var action = data.action;
+    if (action === 'verifyUser')         return handleVerifyUser(data);
+    if (!isAuthorizedEmail(data.userEmail)) {
+      return jsonResponse({error: 'No autorizado', authRequired: true});
+    }
+    if (action === 'appendRow')          return handleAppendRow(data);
+    if (action === 'chat')               return handleChat(data);
+    if (action === 'createReserva')      return handleCreateReserva(data);
+    if (action === 'updateReserva')      return handleUpdateReserva(data);
+    if (action === 'getDisponibilidad')  return handleGetDisponibilidad(data);
+    if (action === 'readFlujo')          return handleReadFlujo(data);
+    if (action === 'readReservas')       return handleReadReservas(data);
+    if (action === 'readDashboard')      return handleReadDashboard(data);
+    return jsonResponse({error: 'Accion desconocida: ' + action});
+  } catch(err) {
+    return jsonResponse({error: err.message});
+  }
+}
+
+// ── CONTABILIDAD ──────────────────────────────────────────────
+function handleAppendRow(data) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('FLUJO');
+  if (!ws) return jsonResponse({error: 'Hoja FLUJO no encontrada'});
+  ws.appendRow([data.fecha, data.valor, data.desc, data.medio, data.tipo, data.ie, data.notas || '']);
+  return jsonResponse({ok: true});
+}
+
+// ── AGENTE IA ─────────────────────────────────────────────────
+function handleChat(data) {
+  var startTime  = Date.now();
+  var messages   = data.messages  || [];
+  var sessionId  = data.sessionId || 'default';
+
+  var context = buildRAGContext();
+
+  var systemPrompt =
+    'Eres el asistente operativo de Apunayni, un negocio de cabanas en Colombia ' +
+    '(cabanas Apunayni, Salvawasi e Intiwasi).\n' +
+    'Tienes acceso COMPLETO en tiempo real a TODOS los datos del negocio: contabilidad, reservas, ingresos detallados, egresos detallados, montos esperados, abonos, saldos.\n\n' +
+    'DATOS ACTUALES:\n' + context + '\n\n' +
+    'REGLAS:\n' +
+    '- Responde siempre en espanol\n' +
+    '- Se conciso pero completo\n' +
+    '- SOLO usa los numeros exactos del contexto. Nunca inventes ni estimes cantidades.\n' +
+    '- El contexto SI incluye ingresos por mes, detalle de reservas con sus valores monetarios, abonos recibidos y saldos por cobrar. Usalo activamente.\n' +
+    '- Cuando te pregunten por ingresos de un mes, SUMA los ingresos registrados en FLUJO de ese mes mas los abonos VALIDADOS de reservas si aplica.\n' +
+    '- Para reservas PENDIENTES, ya tienes el total esperado y el saldo por cobrar. Usalo para calcular ingresos potenciales.\n' +
+    '- Si el contexto no tiene una respuesta exacta, di claramente que no tienes ese dato\n' +
+    '- Cabanas: Apunayni (🏕), Salvawasi (⛺), Intiwasi (🌄)\n' +
+    '- Precios: 1 persona=150000, 2=200000, 3+=200000+20000*(N-2)\n' +
+    '- Clientes frecuentes (mas de 1 visita): descuento 10%\n' +
+    '- Cancelacion: reembolso total si cancela 48h+ antes\n\n' +
+    'Si necesitas ejecutar una accion responde SOLO con JSON valido:\n' +
+    '{"tool":"crear_reserva","cabana":"APUNAYNI","fecha_inicio":"2026-06-01","fecha_fin":"2026-06-02","nombre":"Juan","cedula":"123","telefono":"310","n_personas":2,"abono":100000}\n' +
+    '{"tool":"calcular_precio","n_personas":3,"cliente_frecuente":false}\n' +
+    '{"tool":"buscar_reservas","filtro":"Juan"}';
+
+  var payload = {
+    model:      CLAUDE_MODEL,
+    max_tokens: 1024,
+    system:     systemPrompt,
+    messages:   messages
   };
 
+  var response = UrlFetchApp.fetch('https://api.anthropic.com/v1/messages', {
+    method:            'POST',
+    headers: {
+      'x-api-key':          CLAUDE_API_KEY,
+      'anthropic-version':  '2023-06-01',
+      'content-type':       'application/json'
+    },
+    payload:            JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  var latency = Date.now() - startTime;
+  var result  = JSON.parse(response.getContentText());
+
+  if (result.error) {
+    return jsonResponse({error: result.error.message, latency: latency});
+  }
+
+  var assistantText = result.content[0].text;
+  var usage         = result.usage || {};
+
+  logObservabilidad({
+    sessionId:    sessionId,
+    latency:      latency,
+    inputTokens:  usage.input_tokens  || 0,
+    outputTokens: usage.output_tokens || 0,
+    model:        CLAUDE_MODEL,
+    error:        null
+  });
+
+  var toolResult = null;
   try {
-    const body   = JSON.parse(e.postData.contents);
-    const action = body.action;
-    const email  = (body.userEmail || '').trim().toLowerCase();
-
-    // Verificar usuario autorizado
-    if (!isAuthorized(email)) {
-      return response({ error: 'No autorizado', authRequired: true }, headers);
+    var trimmed = assistantText.trim();
+    if (trimmed.charAt(0) === '{') {
+      var parsed = JSON.parse(trimmed);
+      if (parsed.tool) toolResult = executeTool(parsed);
     }
+  } catch(e) { /* respuesta normal de texto */ }
 
-    switch (action) {
-      case 'readRows':       return response(readRows(body),       headers);
-      case 'appendRow':      return response(appendRow(body),      headers);
-      case 'updateRow':      return response(updateRow(body),      headers);
-      case 'readReservas':   return response(readReservas(body),   headers);
-      case 'createReserva':  return response(createReserva(body),  headers);
-      case 'updateReserva':  return response(updateReserva(body),  headers);
-      default:
-        return response({ error: 'Acción desconocida: ' + action }, headers);
-    }
-  } catch (err) {
-    return response({ error: err.message }, headers);
-  }
+  return jsonResponse({
+    reply:        assistantText,
+    toolResult:   toolResult,
+    usage:        usage,
+    latency:      latency,
+    costEstimate: estimateCost(usage)
+  });
 }
 
-function doGet(e) {
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, msg: 'Apunayni API activa' }))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+// ── RAG: construye contexto agregado desde el Sheet ──────────
+function buildRAGContext() {
+  var ss    = SpreadsheetApp.openById(SHEET_ID);
+  var parts = [];
+  var hoy   = new Date(); hoy.setHours(0,0,0,0);
+  var hoyStr = hoy.getFullYear() + '-' + ('0'+(hoy.getMonth()+1)).slice(-2) + '-' + ('0'+hoy.getDate()).slice(-2);
+  var mesActualKey = hoy.getFullYear() + '-' + ('0'+(hoy.getMonth()+1)).slice(-2);
+  var mesesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-// ── Autorización ───────────────────────────────────────────────────────────
-function isAuthorized(email) {
-  if (!email) return false;
+  parts.push('FECHA ACTUAL: ' + hoyStr + ' (' + mesesNom[hoy.getMonth()] + ' ' + hoy.getFullYear() + ')');
+
+  // ═════ CONTABILIDAD COMPLETA ═════
   try {
-    const ss    = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(TAB_USUARIOS);
-    if (!sheet) return false;
-    const data  = sheet.getDataRange().getValues();
-    // Columna A = email, columna B = activo (TRUE/Si/1)
-    for (let i = 1; i < data.length; i++) {
-      const rowEmail  = (data[i][0] || '').toString().trim().toLowerCase();
-      const rowActivo = data[i][1];
-      if (rowEmail === email && rowActivo) return true;
-    }
-    return false;
-  } catch (err) {
-    return false;
-  }
-}
+    var flujo = ss.getSheetByName('FLUJO');
+    if (flujo) {
+      var rows = flujo.getDataRange().getValues();
+      var saldos = {};
+      var ingresosPorMes = {};
+      var egresosPorMes  = {};
+      var ingresosMesActual = [];
+      var egresosMesActual  = [];
 
-// ── FLUJO: leer / agregar / actualizar filas ───────────────────────────────
-function readRows(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_FLUJO);
-  if (!sheet) return { error: 'Hoja FLUJO no encontrada' };
+      for (var i = 3; i < rows.length; i++) {
+        if (!rows[i][0]) continue;
+        var medio = String(rows[i][3] || '').toUpperCase().trim();
+        var valor = parseFloat(rows[i][1]) || 0;
+        var desc  = String(rows[i][2] || '').trim();
+        var tipo  = String(rows[i][4] || '').toUpperCase().trim();
+        var ie    = String(rows[i][5] || '').toUpperCase().trim();
+        var fecha = rows[i][0];
+        var fechaObj = (fecha instanceof Date) ? fecha : new Date(fecha);
+        if (isNaN(fechaObj.getTime())) continue;
+        var mesKey  = fechaObj.getFullYear() + '-' + ('0'+(fechaObj.getMonth()+1)).slice(-2);
+        var fechaStr = fechaObj.getFullYear() + '-' + ('0'+(fechaObj.getMonth()+1)).slice(-2) + '-' + ('0'+fechaObj.getDate()).slice(-2);
 
-  const data    = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim());
-  const rows    = [];
+        if (medio) saldos[medio] = (saldos[medio] || 0) + valor;
+        if (tipo === 'SALDOS') continue;
 
-  for (let i = 1; i < data.length; i++) {
-    const row = {};
-    headers.forEach((h, j) => { row[h] = data[i][j]; });
-    rows.push(row);
-  }
-  return { ok: true, rows };
-}
-
-function appendRow(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_FLUJO);
-  if (!sheet) return { error: 'Hoja FLUJO no encontrada' };
-
-  const data    = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim());
-  const newRow  = headers.map(h => body[h] !== undefined ? body[h] : '');
-
-  // Auto-ID si la columna ID está vacía
-  const idIdx = headers.indexOf('ID');
-  if (idIdx >= 0 && !newRow[idIdx]) {
-    newRow[idIdx] = 'F-' + Date.now();
-  }
-
-  sheet.appendRow(newRow);
-  return { ok: true, id: newRow[idIdx] || '' };
-}
-
-function updateRow(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_FLUJO);
-  if (!sheet) return { error: 'Hoja FLUJO no encontrada' };
-
-  const data    = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim());
-  const idIdx   = headers.indexOf('ID');
-  if (idIdx < 0) return { error: 'Columna ID no encontrada' };
-
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][idIdx].toString() === body.id.toString()) {
-      headers.forEach((h, j) => {
-        if (h !== 'ID' && body[h] !== undefined) {
-          sheet.getRange(i + 1, j + 1).setValue(body[h]);
+        if (ie === 'INGRESO') {
+          if (!ingresosPorMes[mesKey]) ingresosPorMes[mesKey] = {};
+          ingresosPorMes[mesKey][tipo || 'OTROS'] = (ingresosPorMes[mesKey][tipo || 'OTROS'] || 0) + Math.abs(valor);
+          if (mesKey === mesActualKey) ingresosMesActual.push({fecha: fechaStr, valor: Math.abs(valor), desc: desc, tipo: tipo, medio: medio});
+        } else if (ie === 'EGRESO') {
+          if (!egresosPorMes[mesKey]) egresosPorMes[mesKey] = {};
+          egresosPorMes[mesKey][tipo || 'OTROS'] = (egresosPorMes[mesKey][tipo || 'OTROS'] || 0) + Math.abs(valor);
+          if (mesKey === mesActualKey) egresosMesActual.push({fecha: fechaStr, valor: Math.abs(valor), desc: desc, tipo: tipo, medio: medio});
         }
+      }
+
+      var saldoLines = 'SALDOS ACTUALES POR CUENTA:';
+      var totalSaldo = 0;
+      Object.keys(saldos).forEach(function(m) {
+        saldoLines += '\n  ' + m + ': $' + Math.round(saldos[m]).toLocaleString('es-CO');
+        totalSaldo += saldos[m];
       });
-      return { ok: true };
+      saldoLines += '\n  TOTAL GENERAL: $' + Math.round(totalSaldo).toLocaleString('es-CO');
+      parts.push(saldoLines);
+
+      var ingLines = 'INGRESOS POR MES Y CATEGORIA:';
+      Object.keys(ingresosPorMes).sort().forEach(function(mk) {
+        var totMes = 0;
+        Object.keys(ingresosPorMes[mk]).forEach(function(t) { totMes += ingresosPorMes[mk][t]; });
+        ingLines += '\n  ' + mk + ' (total $' + Math.round(totMes).toLocaleString('es-CO') + '):';
+        Object.keys(ingresosPorMes[mk]).forEach(function(t) {
+          ingLines += '\n    ' + t + ': $' + Math.round(ingresosPorMes[mk][t]).toLocaleString('es-CO');
+        });
+      });
+      parts.push(ingLines);
+
+      var egrLines = 'EGRESOS POR MES Y CATEGORIA:';
+      Object.keys(egresosPorMes).sort().forEach(function(mk) {
+        var totMes = 0;
+        Object.keys(egresosPorMes[mk]).forEach(function(t) { totMes += egresosPorMes[mk][t]; });
+        egrLines += '\n  ' + mk + ' (total $' + Math.round(totMes).toLocaleString('es-CO') + '):';
+        Object.keys(egresosPorMes[mk]).forEach(function(t) {
+          egrLines += '\n    ' + t + ': $' + Math.round(egresosPorMes[mk][t]).toLocaleString('es-CO');
+        });
+      });
+      parts.push(egrLines);
+
+      if (ingresosMesActual.length > 0) {
+        var detIng = 'INGRESOS DETALLADOS DEL MES ACTUAL (' + mesActualKey + '):';
+        ingresosMesActual.sort(function(a,b) { return a.fecha < b.fecha ? -1 : 1; });
+        for (var k = 0; k < Math.min(ingresosMesActual.length, 50); k++) {
+          var x = ingresosMesActual[k];
+          detIng += '\n  ' + x.fecha + ' | $' + Math.round(x.valor).toLocaleString('es-CO') + ' | ' + x.tipo + ' | ' + x.medio + ' | ' + x.desc;
+        }
+        parts.push(detIng);
+      }
+
+      if (egresosMesActual.length > 0) {
+        var detEgr = 'EGRESOS DETALLADOS DEL MES ACTUAL (' + mesActualKey + '):';
+        egresosMesActual.sort(function(a,b) { return a.fecha < b.fecha ? -1 : 1; });
+        for (var k2 = 0; k2 < Math.min(egresosMesActual.length, 50); k2++) {
+          var y = egresosMesActual[k2];
+          detEgr += '\n  ' + y.fecha + ' | $' + Math.round(y.valor).toLocaleString('es-CO') + ' | ' + y.tipo + ' | ' + y.medio + ' | ' + y.desc;
+        }
+        parts.push(detEgr);
+      }
     }
-  }
-  return { error: 'Fila no encontrada: ' + body.id };
+  } catch(e) { parts.push('CONTABILIDAD: error - ' + e.message); }
+
+  // ═════ RESERVAS COMPLETAS (incluye INTIWASI) ═════
+  try {
+    var reservas = ss.getSheetByName('RESERVAS');
+    if (reservas && reservas.getLastRow() > 1) {
+      var rrows = reservas.getDataRange().getValues();
+
+      var totalActivas = 0, apuActivas = 0, salvActivas = 0, intiActivas = 0;
+      var totalHist = 0, apuHist = 0, salvHist = 0, intiHist = 0;
+      var totalPendientes = 0, totalCanceladas = 0, totalValidadas = 0;
+      var porMes = {};
+      var ingresoEsperadoMes = {};
+      var detalleActivas = [];
+      var detallePorMes  = {};
+
+      for (var r = 1; r < rrows.length; r++) {
+        if (!rrows[r][0]) continue;
+        var cabana     = String(rrows[r][1] || '').toUpperCase();
+        var fechaIniObj = (rrows[r][2] instanceof Date) ? rrows[r][2] : new Date(rrows[r][2]);
+        var fechaFinObj = (rrows[r][3] instanceof Date) ? rrows[r][3] : new Date(rrows[r][3]);
+        if (isNaN(fechaIniObj.getTime())) continue;
+        var nombre    = String(rrows[r][4] || '');
+        var nPersonas = parseInt(rrows[r][8]) || 1;
+        var abono     = parseFloat(rrows[r][10]) || 0;
+        var total     = parseFloat(rrows[r][11]) || 0;
+        var saldo     = parseFloat(rrows[r][12]) || 0;
+        var estado    = String(rrows[r][13] || '').toUpperCase();
+        var frecuente = String(rrows[r][14] || '').toUpperCase() === 'SI';
+
+        if (estado === 'CANCELADO') { totalCanceladas++; continue; }
+        if (estado === 'PENDIENTE') totalPendientes++;
+        if (estado === 'VALIDADO')  totalValidadas++;
+
+        var mesKey2    = fechaIniObj.getFullYear() + '-' + ('0'+(fechaIniObj.getMonth()+1)).slice(-2);
+        var fechaIniStr = fechaIniObj.getFullYear() + '-' + ('0'+(fechaIniObj.getMonth()+1)).slice(-2) + '-' + ('0'+fechaIniObj.getDate()).slice(-2);
+        var fechaFinStr = fechaFinObj.getFullYear() + '-' + ('0'+(fechaFinObj.getMonth()+1)).slice(-2) + '-' + ('0'+fechaFinObj.getDate()).slice(-2);
+
+        if (!porMes[mesKey2]) porMes[mesKey2] = {APUNAYNI:0, SALVAWASI:0, INTIWASI:0};
+        if (porMes[mesKey2][cabana] !== undefined) porMes[mesKey2][cabana]++;
+
+        if (!ingresoEsperadoMes[mesKey2]) ingresoEsperadoMes[mesKey2] = {
+          APUNAYNI:  {total:0, abono:0, saldo:0, count:0, pendientes:0},
+          SALVAWASI: {total:0, abono:0, saldo:0, count:0, pendientes:0},
+          INTIWASI:  {total:0, abono:0, saldo:0, count:0, pendientes:0}
+        };
+        if (ingresoEsperadoMes[mesKey2][cabana]) {
+          ingresoEsperadoMes[mesKey2][cabana].total += total;
+          ingresoEsperadoMes[mesKey2][cabana].abono += abono;
+          ingresoEsperadoMes[mesKey2][cabana].saldo += saldo;
+          ingresoEsperadoMes[mesKey2][cabana].count++;
+          if (estado === 'PENDIENTE') ingresoEsperadoMes[mesKey2][cabana].pendientes++;
+        }
+
+        if (!detallePorMes[mesKey2]) detallePorMes[mesKey2] = [];
+        detallePorMes[mesKey2].push({
+          inicio: fechaIniStr, fin: fechaFinStr, cabana: cabana,
+          nombre: nombre, nPersonas: nPersonas,
+          total: total, abono: abono, saldo: saldo,
+          estado: estado, frecuente: frecuente
+        });
+
+        if (fechaFinObj >= hoy) {
+          totalActivas++;
+          if (cabana === 'APUNAYNI')  apuActivas++;
+          else if (cabana === 'SALVAWASI') salvActivas++;
+          else if (cabana === 'INTIWASI')  intiActivas++;
+          if (detalleActivas.length < 30) {
+            detalleActivas.push({
+              inicio: fechaIniStr, fin: fechaFinStr, cabana: cabana,
+              nombre: nombre, total: total, abono: abono, saldo: saldo, estado: estado
+            });
+          }
+        } else {
+          totalHist++;
+          if (cabana === 'APUNAYNI')  apuHist++;
+          else if (cabana === 'SALVAWASI') salvHist++;
+          else if (cabana === 'INTIWASI')  intiHist++;
+        }
+      }
+
+      detalleActivas.sort(function(a,b) { return a.inicio < b.inicio ? -1 : 1; });
+
+      var resLines = 'RESERVAS - RESUMEN:';
+      resLines += '\n  TOTAL ACTIVAS: ' + totalActivas + ' (APUNAYNI: ' + apuActivas + ', SALVAWASI: ' + salvActivas + ', INTIWASI: ' + intiActivas + ')';
+      resLines += '\n  TOTAL HISTORICAS: ' + totalHist + ' (APUNAYNI: ' + apuHist + ', SALVAWASI: ' + salvHist + ', INTIWASI: ' + intiHist + ')';
+      resLines += '\n  PENDIENTES de validar pago: ' + totalPendientes;
+      resLines += '\n  VALIDADAS (pago confirmado): ' + totalValidadas;
+      resLines += '\n  CANCELADAS: ' + totalCanceladas;
+      parts.push(resLines);
+
+      var porMesLines = 'RESERVAS POR MES Y CABANA:';
+      Object.keys(porMes).sort().forEach(function(mk) {
+        var pm  = porMes[mk];
+        var tot = pm.APUNAYNI + pm.SALVAWASI + pm.INTIWASI;
+        if (tot > 0) porMesLines += '\n  ' + mk + ': ' + tot + ' total (APUNAYNI: ' + pm.APUNAYNI + ', SALVAWASI: ' + pm.SALVAWASI + ', INTIWASI: ' + pm.INTIWASI + ')';
+      });
+      parts.push(porMesLines);
+
+      var espLines = 'DINERO POR MES Y CABANA (de reservas no canceladas):';
+      Object.keys(ingresoEsperadoMes).sort().forEach(function(mk) {
+        var iem = ingresoEsperadoMes[mk];
+        ['APUNAYNI','SALVAWASI','INTIWASI'].forEach(function(cab) {
+          if (iem[cab] && iem[cab].count > 0) {
+            espLines += '\n  ' + mk + ' - ' + cab + ' (' + iem[cab].count + ' reservas, ' + iem[cab].pendientes + ' pendientes):';
+            espLines += '\n    Total esperado: $' + Math.round(iem[cab].total).toLocaleString('es-CO');
+            espLines += '\n    Abono recibido: $' + Math.round(iem[cab].abono).toLocaleString('es-CO');
+            espLines += '\n    Saldo por cobrar: $' + Math.round(iem[cab].saldo).toLocaleString('es-CO');
+          }
+        });
+      });
+      parts.push(espLines);
+
+      if (detallePorMes[mesActualKey]) {
+        var detMes = 'DETALLE DE TODAS LAS RESERVAS DEL MES ACTUAL (' + mesActualKey + '):';
+        detallePorMes[mesActualKey].sort(function(a,b) { return a.inicio < b.inicio ? -1 : 1; });
+        detallePorMes[mesActualKey].forEach(function(rr) {
+          detMes += '\n  ' + rr.inicio + ' a ' + rr.fin + ' | ' + rr.cabana + ' | ' + rr.nombre + ' (' + rr.nPersonas + 'p)';
+          detMes += ' | Total $' + Math.round(rr.total).toLocaleString('es-CO');
+          detMes += ' | Abono $' + Math.round(rr.abono).toLocaleString('es-CO');
+          detMes += ' | Saldo $' + Math.round(rr.saldo).toLocaleString('es-CO');
+          detMes += ' | ' + rr.estado;
+          if (rr.frecuente) detMes += ' | FRECUENTE';
+        });
+        parts.push(detMes);
+      }
+
+      if (detalleActivas.length > 0) {
+        var proxLines = 'PROXIMAS RESERVAS ACTIVAS (futuras, ordenadas por fecha):';
+        detalleActivas.forEach(function(d) {
+          proxLines += '\n  ' + d.inicio + ' a ' + d.fin + ' | ' + d.cabana + ' | ' + d.nombre;
+          proxLines += ' | Total $' + Math.round(d.total).toLocaleString('es-CO');
+          proxLines += ' | Abono $' + Math.round(d.abono).toLocaleString('es-CO');
+          proxLines += ' | Saldo $' + Math.round(d.saldo).toLocaleString('es-CO');
+          proxLines += ' | ' + d.estado;
+        });
+        parts.push(proxLines);
+      }
+    } else {
+      parts.push('RESERVAS: sin datos aun (hoja vacia)');
+    }
+  } catch(e) { parts.push('RESERVAS: error - ' + e.message); }
+
+  return parts.join('\n\n');
 }
 
-// ── RESERVAS: leer ─────────────────────────────────────────────────────────
-function readReservas(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_RESERVAS);
-  if (!sheet) return { error: 'Hoja RESERVAS no encontrada' };
+// ── TOOL EXECUTOR ─────────────────────────────────────────────
+function executeTool(toolCall) {
+  if (toolCall.tool === 'crear_reserva')   return handleCreateReserva(toolCall);
+  if (toolCall.tool === 'calcular_precio') return calcularPrecio(toolCall.n_personas, toolCall.cliente_frecuente);
+  if (toolCall.tool === 'buscar_reservas') return buscarReservas(toolCall.filtro);
+  return {error: 'Tool desconocida: ' + toolCall.tool};
+}
 
-  const data    = sheet.getDataRange().getValues();
-  if (data.length < 2) return { ok: true, rows: [] };
+// ── RESERVAS: crear ───────────────────────────────────────────
+function handleCreateReserva(data) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('RESERVAS');
+  if (!ws) {
+    ws = ss.insertSheet('RESERVAS');
+    ws.appendRow(['ID','CABANA','FECHA_INICIO','FECHA_FIN','NOMBRE','CEDULA',
+      'TELEFONO','EMAIL','N_PERSONAS','VISITANTES_EXTRA','ABONO',
+      'TOTAL_ALQUILER','SALDO','ESTADO_PAGO','CLIENTE_FRECUENTE',
+      'COMPROBANTE_URL','FECHA_REGISTRO','NOTAS']);
+    ws.setFrozenRows(1);
+  }
+  var id    = 'R' + Date.now();
+  var abono = parseFloat(data.abono) || 0;
+  // Acepta tanto 'total' (enviado por el form) como 'total_alquiler' (legado)
+  var total = parseFloat(data.total || data.total_alquiler) || 0;
+  var saldo = parseFloat(data.saldo) || Math.max(0, total - abono);
+  ws.appendRow([
+    id,
+    (data.cabana || '').toString().toUpperCase(),
+    data.fecha_inicio || '',
+    data.fecha_fin    || '',
+    data.nombre       || '',
+    data.cedula       || '',
+    data.telefono     || '',
+    data.email        || '',
+    data.n_personas   || 1,
+    JSON.stringify(data.visitantes_extra || []),
+    abono,
+    total,
+    saldo,
+    'PENDIENTE',
+    data.cliente_frecuente ? 'SI' : 'NO',
+    data.comprobante_url || '',
+    new Date().toLocaleDateString('es-CO'),
+    data.notas || ''
+  ]);
+  return jsonResponse({ok: true, id: id});
+}
 
-  const headers = data[0].map(h => h.toString().trim().toUpperCase());
-  const rows    = [];
+// ── RESERVAS: actualizar ──────────────────────────────────────
+function handleUpdateReserva(data) {
+  var ss   = SpreadsheetApp.openById(SHEET_ID);
+  var ws   = ss.getSheetByName('RESERVAS');
+  if (!ws) return jsonResponse({error: 'Hoja RESERVAS no encontrada'});
+  var rows = ws.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    if (rows[i][0] === data.id) {
+      if (data.estado_pago) ws.getRange(i+1, 14).setValue(data.estado_pago);
 
-  for (let i = 1; i < data.length; i++) {
-    const row = {};
-    headers.forEach((h, j) => { row[h] = data[i][j]; });
+      var newAbono = (data.abono !== undefined && data.abono !== null)
+        ? parseFloat(data.abono) : parseFloat(rows[i][10]) || 0;
+      var newTotal = (data.total_alquiler !== undefined && data.total_alquiler !== null)
+        ? parseFloat(data.total_alquiler)
+        : (data.total !== undefined && data.total !== null)
+          ? parseFloat(data.total)
+          : parseFloat(rows[i][11]) || 0;
 
+      if (data.abono          !== undefined && data.abono          !== null) ws.getRange(i+1, 11).setValue(newAbono);
+      if (data.total_alquiler !== undefined && data.total_alquiler !== null) ws.getRange(i+1, 12).setValue(newTotal);
+      if (data.total          !== undefined && data.total          !== null) ws.getRange(i+1, 12).setValue(newTotal);
+
+      // Recalcular saldo salvo que se haya enviado explícitamente
+      if (data.saldo !== undefined && data.saldo !== null) {
+        ws.getRange(i+1, 13).setValue(parseFloat(data.saldo));
+      } else if ((data.abono !== undefined) || (data.total_alquiler !== undefined) || (data.total !== undefined)) {
+        ws.getRange(i+1, 13).setValue(Math.max(0, newTotal - newAbono));
+      }
+
+      if (data.notas !== undefined && data.notas !== null) ws.getRange(i+1, 18).setValue(data.notas);
+
+      // Si se valida, registrar ingreso en FLUJO
+      if (data.estado_pago === 'VALIDADO' && newAbono > 0) {
+        var flujo = ss.getSheetByName('FLUJO');
+        if (flujo) {
+          var cabana  = rows[i][1];
+          var nombre  = rows[i][4];
+          var fechaIni = rows[i][2];
+          flujo.appendRow([
+            fechaIni,
+            newAbono,
+            'RESERVA - ' + nombre,
+            'BANCOLOMBIA',
+            cabana,
+            'INGRESO',
+            'Validado desde app · ID ' + data.id
+          ]);
+        }
+      }
+      return jsonResponse({ok: true});
+    }
+  }
+  return jsonResponse({error: 'Reserva no encontrada: ' + data.id});
+}
+
+// ── DISPONIBILIDAD ────────────────────────────────────────────
+function handleGetDisponibilidad(data) {
+  var ss     = SpreadsheetApp.openById(SHEET_ID);
+  var ws     = ss.getSheetByName('RESERVAS');
+  var cabana = String(data.cabana || '').toUpperCase();
+  if (!ws || ws.getLastRow() <= 1) return jsonResponse({cabana: cabana, ocupadas: []});
+  var rows    = ws.getDataRange().getValues();
+  var hoy2    = new Date();
+  var ocupadas = [];
+  for (var i = 1; i < rows.length; i++) {
+    if (String(rows[i][1]).toUpperCase() === cabana &&
+        rows[i][13] !== 'CANCELADO' &&
+        new Date(rows[i][3]) >= hoy2) {
+      ocupadas.push({inicio: rows[i][2], fin: rows[i][3], nombre: rows[i][4]});
+    }
+  }
+  return jsonResponse({cabana: cabana, ocupadas: ocupadas});
+}
+
+// ── OBSERVABILIDAD ────────────────────────────────────────────
+function logObservabilidad(entry) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('LOGS_IA');
+  if (!ws) {
+    ws = ss.insertSheet('LOGS_IA');
+    ws.appendRow(['TIMESTAMP','SESSION_ID','MODELO','INPUT_TOKENS',
+      'OUTPUT_TOKENS','LATENCY_MS','COSTO_USD','ERROR']);
+    ws.setFrozenRows(1);
+  }
+  ws.appendRow([
+    new Date().toISOString(), entry.sessionId, entry.model,
+    entry.inputTokens, entry.outputTokens, entry.latency,
+    estimateCost({input_tokens: entry.inputTokens, output_tokens: entry.outputTokens}),
+    entry.error || ''
+  ]);
+}
+
+function estimateCost(usage) {
+  var input  = ((usage.input_tokens  || 0) / 1000000) * 3;
+  var output = ((usage.output_tokens || 0) / 1000000) * 15;
+  return parseFloat((input + output).toFixed(6));
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function calcularPrecio(nPersonas, clienteFrecuente) {
+  var n      = parseInt(nPersonas) || 1;
+  var precio = n === 1 ? 150000 : 200000 + Math.max(0, n - 2) * 20000;
+  if (clienteFrecuente) precio = Math.round(precio * 0.9);
+  return {precio: precio, nPersonas: n, descuento: clienteFrecuente ? '10%' : 'ninguno'};
+}
+
+function buscarReservas(filtro) {
+  var ss   = SpreadsheetApp.openById(SHEET_ID);
+  var ws   = ss.getSheetByName('RESERVAS');
+  if (!ws || ws.getLastRow() <= 1) return [];
+  var rows = ws.getDataRange().getValues();
+  var f    = String(filtro || '').toLowerCase();
+  var result = [];
+  for (var i = 1; i < rows.length; i++) {
+    for (var j = 0; j < rows[i].length; j++) {
+      if (String(rows[i][j]).toLowerCase().indexOf(f) !== -1) {
+        result.push({id:rows[i][0], cabana:rows[i][1], inicio:rows[i][2],
+          fin:rows[i][3], nombre:rows[i][4], estado:rows[i][13],
+          abono:rows[i][10], total:rows[i][11]});
+        break;
+      }
+    }
+    if (result.length >= 10) break;
+  }
+  return result;
+}
+
+// ── VERIFY USER ───────────────────────────────────────────────
+function handleVerifyUser(data) {
+  var email = String(data.email || '').toLowerCase().trim();
+  if (!email) return jsonResponse({authorized: false, error: 'email vacio'});
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('USUARIOS');
+  if (!ws) return jsonResponse({authorized: false, error: 'Hoja USUARIOS no existe'});
+  var rows = ws.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    var rowEmail  = String(rows[i][0] || '').toLowerCase().trim();
+    var rowActivo = String(rows[i][3] || '').toUpperCase().trim();
+    if (rowEmail === email && rowActivo === 'SI') {
+      return jsonResponse({
+        authorized: true,
+        nombre: rows[i][1] || '',
+        rol:    rows[i][2] || 'OPERADOR'
+      });
+    }
+  }
+  return jsonResponse({authorized: false});
+}
+
+// ── AUTH CHECK ────────────────────────────────────────────────
+function isAuthorizedEmail(email) {
+  if (!email) return false;
+  var normEmail = String(email).toLowerCase().trim();
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var ws = ss.getSheetByName('USUARIOS');
+    if (!ws) return false;
+    var rows = ws.getDataRange().getValues();
+    for (var i = 1; i < rows.length; i++) {
+      var rowEmail  = String(rows[i][0] || '').toLowerCase().trim();
+      var rowActivo = String(rows[i][3] || '').toUpperCase().trim();
+      if (rowEmail === normEmail && rowActivo === 'SI') return true;
+    }
+  } catch(e) {}
+  return false;
+}
+
+// ── READ FLUJO ────────────────────────────────────────────────
+function handleReadFlujo(data) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('FLUJO');
+  if (!ws) return jsonResponse({rows: []});
+  var lastRow = ws.getLastRow();
+  if (lastRow < 4) return jsonResponse({rows: []});
+  var range = ws.getRange(4, 1, lastRow - 3, 8).getValues();
+  var rows = [];
+  for (var i = 0; i < range.length; i++) {
+    var row = range[i];
+    if (!row[0] || (row[1] === '' || row[1] === null)) continue;
     rows.push({
-      id:        toString(row['ID']),
-      cabana:    toString(row['CABANA']),
-      inicio:    formatDate(row['INICIO']),
-      fin:       formatDate(row['FIN']),
-      nombre:    toString(row['NOMBRE']),
-      cedula:    toString(row['CEDULA']),
-      telefono:  toString(row['TELEFONO']),
-      email:     toString(row['EMAIL']),
-      nPersonas: toNum(row['N_PERSONAS']),
-      abono:     toNum(row['ABONO']),
-      total:     toNum(row['TOTAL']),
-      saldo:     toNum(row['SALDO']),
-      estado:    toString(row['ESTADO']) || 'PENDIENTE',
-      frecuente: row['FRECUENTE'] ? true : false,
-      notas:     toString(row['NOTAS'])
+      fecha:  formatDateValue(row[0]),
+      valor:  parseFloat(row[1]) || 0,
+      desc:   String(row[2] || '').trim(),
+      medio:  String(row[3] || '').trim().toUpperCase(),
+      tipo:   String(row[4] || '').trim().toUpperCase(),
+      ie:     String(row[5] || '').trim().toUpperCase(),
+      notas:  String(row[7] || '')
     });
   }
-
-  return { ok: true, rows };
+  return jsonResponse({rows: rows});
 }
 
-// ── RESERVAS: crear ────────────────────────────────────────────────────────
-function createReserva(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_RESERVAS);
-  if (!sheet) return { error: 'Hoja RESERVAS no encontrada' };
-
-  // Validar cabaña
-  const cabana = (body.cabana || '').toString().toUpperCase();
-  if (!CABANAS_VALIDAS.includes(cabana)) {
-    return { error: 'Cabaña inválida: ' + cabana };
+// ── READ RESERVAS ─────────────────────────────────────────────
+function handleReadReservas(data) {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var ws = ss.getSheetByName('RESERVAS');
+  if (!ws || ws.getLastRow() < 2) return jsonResponse({rows: []});
+  var range = ws.getRange(2, 1, ws.getLastRow() - 1, 18).getValues();
+  var rows  = [];
+  for (var i = 0; i < range.length; i++) {
+    var r = range[i];
+    if (!r[0]) continue;
+    rows.push({
+      id:        String(r[0]),
+      cabana:    String(r[1] || '').toUpperCase(),
+      inicio:    formatDateValue(r[2]),
+      fin:       formatDateValue(r[3]),
+      nombre:    String(r[4]  || ''),
+      cedula:    String(r[5]  || ''),
+      telefono:  String(r[6]  || ''),
+      email:     String(r[7]  || ''),
+      nPersonas: parseInt(r[8]) || 1,
+      abono:     parseFloat(r[10]) || 0,
+      total:     parseFloat(r[11]) || 0,
+      saldo:     parseFloat(r[12]) || 0,
+      estado:    String(r[13] || 'PENDIENTE').toUpperCase(),
+      frecuente: String(r[14] || 'NO').toUpperCase() === 'SI',
+      notas:     String(r[17] || '')
+    });
   }
+  return jsonResponse({rows: rows});
+}
 
-  const data    = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim().toUpperCase());
-
-  // Generar ID único
-  const existing = data.slice(1).map(r => r[headers.indexOf('ID')].toString());
-  const id = generarIdReserva(existing);
-
-  // Construir fila según las columnas presentes
-  const newRow = headers.map(h => {
-    switch (h) {
-      case 'ID':              return id;
-      case 'CABANA':          return cabana;
-      case 'INICIO':          return body.fecha_inicio || '';
-      case 'FIN':             return body.fecha_fin    || '';
-      case 'NOMBRE':          return body.nombre       || '';
-      case 'CEDULA':          return body.cedula       || '';
-      case 'TELEFONO':        return body.telefono     || '';
-      case 'EMAIL':           return body.email        || '';
-      case 'N_PERSONAS':      return body.n_personas   || 1;
-      case 'ABONO':           return body.abono        || 0;
-      case 'TOTAL':           return body.total        || 0;
-      case 'SALDO':           return body.saldo        || 0;
-      case 'ESTADO':          return 'PENDIENTE';
-      case 'FRECUENTE':       return '';
-      case 'NOTAS':           return body.notas        || '';
-      case 'FECHA_CREACION':  return new Date().toISOString().slice(0, 10);
-      default:                return '';
-    }
+// ── READ DASHBOARD ────────────────────────────────────────────
+function handleReadDashboard(data) {
+  var flujoRes     = handleReadFlujo(data);
+  var reservasRes  = handleReadReservas(data);
+  var flujoData    = JSON.parse(flujoRes.getContent());
+  var reservasData = JSON.parse(reservasRes.getContent());
+  return jsonResponse({
+    flujo:    flujoData.rows    || [],
+    reservas: reservasData.rows || []
   });
-
-  sheet.appendRow(newRow);
-  logAction('createReserva', body.userEmail, { id, cabana, nombre: body.nombre });
-  return { ok: true, id };
 }
 
-// ── RESERVAS: actualizar ───────────────────────────────────────────────────
-function updateReserva(body) {
-  const ss    = SpreadsheetApp.openById(SHEET_ID);
-  const sheet = ss.getSheetByName(TAB_RESERVAS);
-  if (!sheet) return { error: 'Hoja RESERVAS no encontrada' };
-
-  const data    = sheet.getDataRange().getValues();
-  const headers = data[0].map(h => h.toString().trim().toUpperCase());
-  const idIdx   = headers.indexOf('ID');
-  if (idIdx < 0) return { error: 'Columna ID no encontrada en RESERVAS' };
-
-  const targetId = (body.id || '').toString();
-  let rowIndex   = -1;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][idIdx].toString() === targetId) { rowIndex = i; break; }
+// ── FORMAT DATE ───────────────────────────────────────────────
+function formatDateValue(v) {
+  if (!v) return '';
+  if (v instanceof Date && !isNaN(v.getTime())) {
+    var y = v.getFullYear();
+    var m = String(v.getMonth() + 1); if (m.length < 2) m = '0' + m;
+    var d = String(v.getDate());      if (d.length < 2) d = '0' + d;
+    return y + '-' + m + '-' + d;
   }
-  if (rowIndex < 0) return { error: 'Reserva no encontrada: ' + targetId };
-
-  // Mapa de campos que se pueden actualizar
-  const fieldMap = {
-    'ESTADO':     body.estado_pago,
-    'TOTAL':      body.total_alquiler !== undefined ? body.total_alquiler : body.total,
-    'ABONO':      body.abono,
-    'SALDO':      body.saldo,
-    'NOTAS':      body.notas,
-    'CABANA':     body.cabana ? body.cabana.toUpperCase() : undefined,
-    'INICIO':     body.fecha_inicio,
-    'FIN':        body.fecha_fin,
-    'NOMBRE':     body.nombre,
-    'CEDULA':     body.cedula,
-    'TELEFONO':   body.telefono,
-    'N_PERSONAS': body.n_personas,
-    'FRECUENTE':  body.frecuente
-  };
-
-  headers.forEach((h, j) => {
-    const val = fieldMap[h];
-    if (val !== undefined && val !== null) {
-      sheet.getRange(rowIndex + 1, j + 1).setValue(val);
-    }
-  });
-
-  // Recalcular saldo si cambiaron total o abono pero no se envió saldo explícito
-  if ((body.total_alquiler !== undefined || body.abono !== undefined) && body.saldo === undefined) {
-    const totalIdx = headers.indexOf('TOTAL');
-    const abonoIdx = headers.indexOf('ABONO');
-    const saldoIdx = headers.indexOf('SALDO');
-    if (totalIdx >= 0 && abonoIdx >= 0 && saldoIdx >= 0) {
-      const updatedData = sheet.getRange(rowIndex + 1, 1, 1, headers.length).getValues()[0];
-      const nuevoSaldo  = Math.max(0, (updatedData[totalIdx] || 0) - (updatedData[abonoIdx] || 0));
-      sheet.getRange(rowIndex + 1, saldoIdx + 1).setValue(nuevoSaldo);
-    }
+  if (typeof v === 'object' && v !== null && typeof v.getFullYear === 'function') {
+    var y2 = v.getFullYear();
+    var m2 = String(v.getMonth() + 1); if (m2.length < 2) m2 = '0' + m2;
+    var d2 = String(v.getDate());       if (d2.length < 2) d2 = '0' + d2;
+    return y2 + '-' + m2 + '-' + d2;
   }
-
-  logAction('updateReserva', body.userEmail, { id: targetId, estado: body.estado_pago });
-  return { ok: true };
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function toString(val) {
-  if (val === null || val === undefined) return '';
-  return val.toString().trim();
-}
-
-function toNum(val) {
-  const n = parseFloat(val);
-  return isNaN(n) ? 0 : n;
-}
-
-function formatDate(val) {
-  if (!val) return '';
-  if (val instanceof Date) {
-    const y = val.getFullYear();
-    const m = String(val.getMonth() + 1).padStart(2, '0');
-    const d = String(val.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  }
-  return val.toString().slice(0, 10);
-}
-
-function generarIdReserva(existingIds) {
-  const prefix = 'RES-';
-  let max = 0;
-  existingIds.forEach(id => {
-    if (id.startsWith(prefix)) {
-      const n = parseInt(id.replace(prefix, ''), 10);
-      if (!isNaN(n) && n > max) max = n;
-    }
-  });
-  return prefix + String(max + 1).padStart(3, '0');
-}
-
-function logAction(action, email, extra) {
+  var str = String(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(str)) return str.slice(0, 10);
   try {
-    const ss    = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName(TAB_LOGS);
-    if (!sheet) return;
-    sheet.appendRow([new Date().toISOString(), action, email, JSON.stringify(extra || {})]);
-  } catch (e) { /* silencioso */ }
+    var parsed = new Date(str);
+    if (!isNaN(parsed.getTime())) {
+      var y3 = parsed.getFullYear();
+      var m3 = String(parsed.getMonth() + 1); if (m3.length < 2) m3 = '0' + m3;
+      var d3 = String(parsed.getDate());       if (d3.length < 2) d3 = '0' + d3;
+      return y3 + '-' + m3 + '-' + d3;
+    }
+  } catch(e) {}
+  return str;
 }
 
-function response(data, headers) {
-  const output = ContentService.createTextOutput(JSON.stringify(data))
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-  return output;
-}
-
-// ── Setup inicial: crea encabezados si las hojas están vacías ──────────────
-function setupSheets() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-  // RESERVAS
-  let res = ss.getSheetByName(TAB_RESERVAS);
-  if (!res) res = ss.insertSheet(TAB_RESERVAS);
-  if (res.getLastRow() === 0) {
-    res.appendRow(['ID','CABANA','INICIO','FIN','NOMBRE','CEDULA','TELEFONO',
-                   'EMAIL','N_PERSONAS','ABONO','TOTAL','SALDO','ESTADO',
-                   'FRECUENTE','NOTAS','FECHA_CREACION']);
-    res.setFrozenRows(1);
-  }
-
-  // LOGS_IA
-  let logs = ss.getSheetByName(TAB_LOGS);
-  if (!logs) logs = ss.insertSheet(TAB_LOGS);
-  if (logs.getLastRow() === 0) {
-    logs.appendRow(['TIMESTAMP','ACCION','USUARIO','DETALLE']);
-    logs.setFrozenRows(1);
-  }
-
-  // USUARIOS
-  let usuarios = ss.getSheetByName(TAB_USUARIOS);
-  if (!usuarios) usuarios = ss.insertSheet(TAB_USUARIOS);
-  if (usuarios.getLastRow() === 0) {
-    usuarios.appendRow(['EMAIL','ACTIVO','NOMBRE']);
-    usuarios.setFrozenRows(1);
-    // Agregar usuario inicial
-    usuarios.appendRow(['dreategui@unal.edu.co', true, 'Admin']);
-  }
-
-  SpreadsheetApp.flush();
-  Browser.msgBox('✅ Hojas configuradas correctamente');
 }
