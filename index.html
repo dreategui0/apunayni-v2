@@ -2814,6 +2814,7 @@ function showDayReservas(dateStr) {
       if (r.estado === 'VALIDADO') {
         html += '<button onclick="closeResModalForced();sendConfirmacionWhatsApp(\''+r.id+'\')" style="flex:1;min-width:100px;padding:9px;background:rgba(37,211,102,0.15);color:#25d366;border:1px solid #25d366;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">📲 Enviar confirmación</button>';
       }
+      html += '<button onclick="openEditReservaModal(\''+r.id+'\')" style="flex:1;min-width:80px;padding:9px;background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✎ Editar</button>';
       html += '<button onclick="cancelarReserva(\''+r.id+'\')" style="flex:1;min-width:80px;padding:9px;background:rgba(255,95,109,0.12);color:var(--red);border:1px solid var(--red);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✗ Cancelar</button>';
       html += '</div>';
     }
@@ -2949,6 +2950,32 @@ function openNuevaReservaModal(fechaInicio, cabana) {
   if (cabana) selectCabana(cabana);
   updatePersonasCount();
   calcNRSaldo();
+  document.getElementById('nuevaResSheet').classList.add('open');
+}
+
+function openEditReservaModal(id) {
+  const r = reservasData.find(x => x.id === id);
+  if (!r) return;
+  closeResModalForced();
+  nrState = { cabana: r.cabana, personasExtra: [], abonos: [], mascota: null, transporte: null, editId: id };
+  document.getElementById('nuevaResTitle').textContent = 'Editar reserva';
+  document.getElementById('nrNombre').value   = r.nombre   || '';
+  document.getElementById('nrCedula').value   = r.cedula   || '';
+  document.getElementById('nrTelefono').value = r.telefono || '';
+  document.getElementById('nrTotal').value    = r.total    || '';
+  document.getElementById('nrAnticipo').value = r.abono    || '';
+  document.getElementById('nrNotas').value    = r.notas    || '';
+  document.getElementById('nrFechaInicio').value = r.inicio || '';
+  document.getElementById('nrFechaFin').value    = r.fin    || '';
+  document.getElementById('personasList').innerHTML = '';
+  document.getElementById('abonosList').innerHTML   = '';
+  document.querySelectorAll('.transp-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mascota-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.cab-btn').forEach(b => b.classList.remove('active'));
+  selectCabana(r.cabana);
+  updatePersonasCount();
+  calcNRSaldo();
+  document.getElementById('nrSubmitBtn').textContent = 'Actualizar reserva';
   document.getElementById('nuevaResSheet').classList.add('open');
 }
 
@@ -3298,11 +3325,7 @@ function buildDisponibilidadMessage(cabana) {
     }
     const linea = emoji + diasNom[dowNow] + ' ' + d.getDate() + ' a ' + nextLabel + sufijo;
 
-    if (ocupadasMap[iso]) {
-      // Nombre corto (primer nombre)
-      const nombreCorto = ocupadasMap[iso].split(' ')[0];
-      txt += '- [x] ' + linea + ':' + nombreCorto + '\n';
-    } else {
+    if (!ocupadasMap[iso]) {
       txt += '- [ ] ' + linea + '\n';
     }
   }
