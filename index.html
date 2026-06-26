@@ -36,6 +36,8 @@
   --gold-dim:  rgba(240,192,96,0.12);
   --accent:    #7c6eff;
   --accent-dim:rgba(124,110,255,0.15);
+  --violet:    #818cf8;
+  --violet-dim:rgba(129,140,248,0.14);
   --radius:    16px;
   --radius-sm: 10px;
   --font-display: 'DM Serif Display', serif;
@@ -571,6 +573,7 @@ html, body {
 .cal-dot { width: 7px; height: 7px; border-radius: 50%; }
 .cal-dot.apunayni  { background: #2ecc8a; }
 .cal-dot.salvawasi { background: #f0c060; }
+.cal-dot.intiwasi  { background: var(--violet); }
 .cal-weekday {
   font-size: 10px; color: var(--text3); text-align: center;
   padding: 4px 0; font-weight: 600; letter-spacing: 0.04em;
@@ -620,9 +623,108 @@ html, body {
 }
 .res-list-item .cab.apunayni  { background: rgba(46,204,138,0.15); color: #2ecc8a; }
 .res-list-item .cab.salvawasi { background: rgba(240,192,96,0.15); color: #f0c060; }
+.res-list-item .cab.intiwasi  { background: rgba(129,140,248,0.15); color: var(--violet); }
 .res-list-item .estado.pendiente { color: var(--gold); }
 .res-list-item .estado.validado  { color: var(--green); }
 .res-list-item .estado.cancelado { color: var(--red); }
+.res-share-btn.inti { border-color: var(--violet); color: var(--violet); }
+
+/* ── NUEVA RESERVA MODAL (bottom sheet) ─────────────────────── */
+.res-modal-sheet {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  z-index: 150; display: flex; align-items: flex-end;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s;
+}
+.res-modal-sheet.open { opacity: 1; pointer-events: all; }
+.res-modal-sheet-inner {
+  background: var(--surface); border-radius: 22px 22px 0 0;
+  width: 100%; max-height: 92vh; overflow-y: auto;
+  padding: 0 0 40px;
+  transform: translateY(40px); transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+}
+.res-modal-sheet.open .res-modal-sheet-inner { transform: none; }
+.res-modal-handle {
+  width: 36px; height: 4px; background: var(--border2);
+  border-radius: 2px; margin: 14px auto 0;
+}
+.res-modal-header {
+  padding: 14px 20px 10px; display: flex; align-items: center;
+  justify-content: space-between; border-bottom: 1px solid var(--border);
+}
+.res-modal-title { font-size: 17px; font-weight: 700; }
+.res-modal-close { background: none; border: none; color: var(--text3); font-size: 20px; cursor: pointer; }
+.res-modal-body { padding: 16px 20px; }
+.res-section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text3); margin: 16px 0 8px;
+}
+.cab-selector { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+.cab-btn {
+  padding: 10px 6px; border-radius: 10px; border: 1.5px solid var(--border2);
+  background: var(--surface2); color: var(--text2); font-size: 12px;
+  font-weight: 600; cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.cab-btn.active.apu  { border-color: #2ecc8a; color: #2ecc8a; background: rgba(46,204,138,0.12); }
+.cab-btn.active.salv { border-color: #f0c060; color: #f0c060; background: rgba(240,192,96,0.12); }
+.cab-btn.active.inti { border-color: var(--violet); color: var(--violet); background: var(--violet-dim); }
+.personas-list { display: flex; flex-direction: column; gap: 8px; }
+.persona-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.persona-row .form-input { flex: 1; padding: 10px 12px; font-size: 13px; }
+.persona-remove { background: none; border: 1px solid var(--red); color: var(--red);
+  border-radius: 8px; width: 32px; height: 38px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+.add-persona-btn {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  background: var(--surface2); border: 1.5px dashed var(--border2);
+  border-radius: 10px; color: var(--text3); font-size: 13px; cursor: pointer;
+  width: 100%; margin-top: 4px;
+}
+.abonos-list { display: flex; flex-direction: column; gap: 6px; }
+.abono-row { display: flex; gap: 8px; align-items: center; }
+.abono-row .form-input { flex: 1; padding: 10px 12px; font-size: 13px; }
+.abono-remove { background: none; border: 1px solid var(--border2); color: var(--text3);
+  border-radius: 8px; width: 32px; height: 38px; cursor: pointer; font-size: 16px; flex-shrink: 0; }
+.pago-completo-btn {
+  width: 100%; padding: 11px; background: var(--green-dim); border: 1px solid var(--green);
+  border-radius: 10px; color: var(--green); font-weight: 600; font-size: 13px; cursor: pointer; margin-top: 8px;
+}
+.saldo-display {
+  background: var(--surface2); border-radius: 10px; padding: 12px 14px;
+  margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+}
+.transp-selector { display: flex; gap: 6px; flex-wrap: wrap; }
+.transp-btn {
+  padding: 8px 14px; border-radius: 20px; border: 1.5px solid var(--border2);
+  background: var(--surface2); color: var(--text2); font-size: 12px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.transp-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.mascota-toggle {
+  display: flex; gap: 8px;
+}
+.mascota-btn {
+  flex: 1; padding: 10px; border-radius: 10px; border: 1.5px solid var(--border2);
+  background: var(--surface2); color: var(--text2); font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.mascota-btn.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
+
+/* ── BUSCADOR ──────────────────────────────────────────────── */
+.search-bar-wrap { position: relative; margin-bottom: 12px; }
+.search-bar-wrap input { padding-left: 38px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 16px; }
+.search-results { margin-top: 0; }
+
+/* ── COBROS PENDIENTES ─────────────────────────────────────── */
+.cobro-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.cobro-row:last-child { border-bottom: none; }
+.cobro-nombre { font-weight: 600; }
+.cobro-sub { font-size: 11px; color: var(--text3); margin-top: 1px; }
+.cobro-val { font-weight: 700; color: var(--gold); }
 /* Modal */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.7);
@@ -989,11 +1091,23 @@ html, body {
           </div>
         </div>
         <div id="resBreakdown"></div>
-        <!-- Botones de compartir -->
-        <div class="res-share-btns">
-          <button class="res-share-btn apu" onclick="shareDisponibilidad('APUNAYNI')">📅 Disp. Apunayni</button>
-          <button class="res-share-btn salv" onclick="shareDisponibilidad('SALVAWASI')">📅 Disp. Salvawasi</button>
+        <!-- Buscador -->
+        <div class="search-bar-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="form-input" id="resSearchInput" placeholder="Buscar por nombre, cédula o fecha…" oninput="buscarReserva(this.value)" style="padding-left:38px">
         </div>
+        <div class="search-results" id="searchResults" style="display:none"></div>
+
+        <!-- Botones de disponibilidad -->
+        <div class="res-share-btns" style="flex-wrap:wrap;gap:6px">
+          <button class="res-share-btn apu" onclick="shareDisponibilidad('APUNAYNI')" style="flex:1;min-width:120px">📅 Disp. Apunayni</button>
+          <button class="res-share-btn salv" onclick="shareDisponibilidad('SALVAWASI')" style="flex:1;min-width:120px">📅 Disp. Salvawasi</button>
+          <button class="res-share-btn inti" onclick="shareDisponibilidad('INTIWASI')" style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--violet);color:var(--violet)">📅 Disp. Intiwasi</button>
+        </div>
+
+        <!-- Botón añadir reserva -->
+        <button onclick="openNuevaReservaModal(null,null)" style="width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--violet));border:none;border-radius:var(--radius);color:white;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:14px">+ Añadir reserva</button>
+
         <!-- Calendario -->
         <div class="cal-header">
           <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
@@ -1009,7 +1123,25 @@ html, body {
         <div class="cal-grid" id="calGrid"></div>
         <!-- Reservas activas list -->
         <div class="card-title" style="margin-top:16px;margin-bottom:8px">Próximas reservas</div>
-      <div id="resListActivas"></div>
+        <div id="resListActivas"></div>
+
+        <!-- Cobros pendientes -->
+        <div class="card-title" style="margin-top:20px;margin-bottom:8px">💳 Cobros pendientes</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="cobro-filter-btn" id="cft_all" onclick="setCobrosFilter('all')" style="flex:1;min-width:60px;padding:7px 10px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:20px;color:var(--text);font-size:12px;font-weight:600;cursor:pointer">Todo</button>
+            <button class="cobro-filter-btn" id="cft_mes" onclick="setCobrosFilter('mes')" style="flex:1;min-width:60px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;color:var(--text2);font-size:12px;cursor:pointer">Este mes</button>
+            <button class="cobro-filter-btn" id="cft_next" onclick="setCobrosFilter('next')" style="flex:1;min-width:60px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;color:var(--text2);font-size:12px;cursor:pointer">Próximo mes</button>
+            <button class="cobro-filter-btn" id="cft_custom" onclick="setCobrosFilter('custom')" style="flex:1;min-width:60px;padding:7px 10px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;color:var(--text2);font-size:12px;cursor:pointer">Elegir</button>
+          </div>
+          <div id="cobrosCustomRange" style="display:none;gap:8px;margin-bottom:12px">
+            <div style="display:flex;gap:8px">
+              <input type="date" id="cobrosDesde" class="form-input" style="flex:1;font-size:13px;padding:8px 10px" onchange="renderCobrosPanel()">
+              <input type="date" id="cobrosHasta" class="form-input" style="flex:1;font-size:13px;padding:8px 10px" onchange="renderCobrosPanel()">
+            </div>
+          </div>
+          <div id="cobrosBody"></div>
+        </div>
     </div>
 
     <!-- ══ SCREEN: CHAT IA ═════════════════════════════════ -->
@@ -1065,6 +1197,118 @@ html, body {
       </div>
     </div>
 
+    <!-- Bottom sheet: NUEVA / EDITAR RESERVA -->
+    <div class="res-modal-sheet" id="nuevaResSheet" onclick="closeNuevaReservaModal(event)">
+      <div class="res-modal-sheet-inner" onclick="event.stopPropagation()">
+        <div class="res-modal-handle"></div>
+        <div class="res-modal-header">
+          <div class="res-modal-title" id="nuevaResTitle">Nueva reserva</div>
+          <button class="res-modal-close" onclick="closeNuevaReservaModal()">✕</button>
+        </div>
+        <div class="res-modal-body">
+
+          <!-- Cabaña -->
+          <div class="res-section-label">Cabaña</div>
+          <div class="cab-selector">
+            <button class="cab-btn apu" id="cabBtn_APUNAYNI" onclick="selectCabana('APUNAYNI')">🏕 Apunayni</button>
+            <button class="cab-btn salv" id="cabBtn_SALVAWASI" onclick="selectCabana('SALVAWASI')">⛺ Salvawasi</button>
+            <button class="cab-btn inti" id="cabBtn_INTIWASI" onclick="selectCabana('INTIWASI')">🌄 Intiwasi</button>
+          </div>
+
+          <!-- Fechas -->
+          <div class="res-section-label">Fechas</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <label class="form-label" style="font-size:11px">Llegada</label>
+              <input type="date" class="form-input" id="nrFechaInicio" oninput="calcNRSaldo()">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11px">Salida</label>
+              <input type="date" class="form-input" id="nrFechaFin" oninput="calcNRSaldo()">
+            </div>
+          </div>
+
+          <!-- Titular -->
+          <div class="res-section-label">Titular de la reserva</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <input type="text" class="form-input" id="nrNombre" placeholder="Nombre completo">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input type="text" inputmode="numeric" class="form-input" id="nrCedula" placeholder="Cédula / Doc.">
+              <input type="tel" class="form-input" id="nrTelefono" placeholder="Teléfono">
+            </div>
+          </div>
+
+          <!-- Personas adicionales -->
+          <div class="res-section-label">Personas del grupo</div>
+          <div class="personas-list" id="personasList"></div>
+          <button class="add-persona-btn" onclick="addPersonaExtra()">
+            <span style="font-size:20px;line-height:1">＋</span> Añadir persona
+          </button>
+          <div style="margin-top:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between;font-size:13px">
+            <span style="color:var(--text3)">Total personas</span>
+            <span style="font-weight:700;color:var(--accent)" id="nrTotalPersonas">1</span>
+          </div>
+
+          <!-- Financiero -->
+          <div class="res-section-label">Financiero</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+            <div>
+              <label class="form-label" style="font-size:11px">Valor total</label>
+              <div class="valor-input-wrap">
+                <span class="valor-prefix">$</span>
+                <input type="number" inputmode="numeric" class="form-input" id="nrTotal" placeholder="0" oninput="calcNRSaldo()">
+              </div>
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11px">Anticipo</label>
+              <div class="valor-input-wrap">
+                <span class="valor-prefix">$</span>
+                <input type="number" inputmode="numeric" class="form-input" id="nrAnticipo" placeholder="0" oninput="calcNRSaldo()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Abonos adicionales -->
+          <div style="font-size:12px;color:var(--text3);margin-bottom:6px">Abonos adicionales</div>
+          <div class="abonos-list" id="abonosList"></div>
+          <button class="add-persona-btn" onclick="addAbono()">
+            <span style="font-size:20px;line-height:1">＋</span> Agregar abono
+          </button>
+
+          <!-- Pago completo -->
+          <button class="pago-completo-btn" onclick="marcarPagoCompleto()">✓ Marcar pago completo (llenado automático)</button>
+
+          <!-- Saldo -->
+          <div class="saldo-display">
+            <span style="color:var(--text2);font-size:13px">Pendiente por pagar</span>
+            <span style="font-weight:700;font-size:16px;color:var(--gold)" id="nrSaldo">$0</span>
+          </div>
+
+          <!-- Mascota -->
+          <div class="res-section-label">¿Llevan mascota? (opcional)</div>
+          <div class="mascota-toggle">
+            <button class="mascota-btn" id="mascotaNo" onclick="setMascota(false)">🚫 No</button>
+            <button class="mascota-btn" id="mascotaSi" onclick="setMascota(true)">🐶 Sí</button>
+          </div>
+
+          <!-- Transporte -->
+          <div class="res-section-label">Transporte (opcional)</div>
+          <div class="transp-selector">
+            <button class="transp-btn" onclick="setTransporte(this,'Auto')">🚗 Auto</button>
+            <button class="transp-btn" onclick="setTransporte(this,'Moto')">🏍 Moto</button>
+            <button class="transp-btn" onclick="setTransporte(this,'Transp. Público')">🚌 Transp. Público</button>
+          </div>
+
+          <!-- Notas -->
+          <div class="res-section-label">Notas adicionales (opcional)</div>
+          <input type="text" class="form-input" id="nrNotas" placeholder="Observaciones, solicitudes especiales…">
+
+          <!-- Guardar -->
+          <button class="submit-btn" id="nrSubmitBtn" onclick="submitNuevaReserva()" style="margin-top:20px">Guardar reserva</button>
+        </div>
+      </div>
+    </div>
+
   <nav class="bottom-nav">
     <button class="nav-btn active" id="nav0" onclick="showScreen(0)">
       <span class="nav-icon">◆</span>Resumen
@@ -1111,6 +1355,7 @@ html, body {
 const GLOSARIO = [
   { desc: 'RESERVAS',         tipo: 'APUNAYNI',     ie: 'INGRESO', medios: ['BANCOLOMBIA','NEQUI','EFECTIVO'] },
   { desc: 'RESERVAS',         tipo: 'SALVAWASI',    ie: 'INGRESO', medios: ['BANCOLOMBIA','NEQUI','EFECTIVO'] },
+  { desc: 'RESERVAS',         tipo: 'INTIWASI',     ie: 'INGRESO', medios: ['BANCOLOMBIA','NEQUI','EFECTIVO'] },
   { desc: 'VENTAS',           tipo: 'TIENDA',       ie: 'INGRESO', medios: ['EFECTIVO','BANCOLOMBIA'] },
   { desc: 'SALARIO-LILIANA',  tipo: 'SALARIOS',     ie: 'EGRESO',  medios: ['BANCOLOMBIA','EFECTIVO','NU'] },
   { desc: 'SALARIO-ALEJANDRO',tipo: 'SALARIOS',     ie: 'EGRESO',  medios: ['BANCOLOMBIA','EFECTIVO','NU'] },
@@ -1129,7 +1374,7 @@ const GLOSARIO = [
 ];
 
 const MEDIOS  = ['BANCOLOMBIA','EFECTIVO','NU','NEQUI','DAVIVIENDA','DAVIPLATA'];
-const TIPOS   = ['APUNAYNI','SALVAWASI','OPERATIVO','SALARIOS','TIENDA','REEMBOLSO','INTER CUENTA'];
+const TIPOS   = ['APUNAYNI','SALVAWASI','INTIWASI','OPERATIVO','SALARIOS','TIENDA','REEMBOLSO','INTER CUENTA'];
 // ─── COSTOS FIJOS ── Para agregar: añade una línea. Para eliminar: borra la línea. ──
 // tipos: 'fixed'=monto exacto acumula, 'variable'=cualquier pago cuenta, 
 //        'auto'=siempre pagado, 'accum'=acumula histórico, 'lili', 'alejo'
@@ -1820,7 +2065,7 @@ function renderMovimientos() {
     byDate[d].push(r);
   });
 
-  const icons = { APUNAYNI:'🏡', SALVAWASI:'🏕️', OPERATIVO:'🔧', SALARIOS:'👤', TIENDA:'🛍️', REEMBOLSO:'↩️', 'INTER CUENTA':'↔️' };
+  const icons = { APUNAYNI:'🏡', SALVAWASI:'🏕️', INTIWASI:'🌄', OPERATIVO:'🔧', SALARIOS:'👤', TIENDA:'🛍️', REEMBOLSO:'↩️', 'INTER CUENTA':'↔️' };
   
   let html = '';
   Object.entries(byDate).forEach(([date, rows]) => {
@@ -2374,6 +2619,7 @@ async function initReservas() {
   renderResSummary();
   renderCalendar();
   renderResList();
+  setCobrosFilter(cobrosFilter || 'all');
 }
 
 async function loadReservas() {
@@ -2423,13 +2669,14 @@ function renderResSummary() {
   });
   const apuAct  = activas.filter(r => r.cabana === 'APUNAYNI').length;
   const salvAct = activas.filter(r => r.cabana === 'SALVAWASI').length;
+  const intiAct = activas.filter(r => r.cabana === 'INTIWASI').length;
   const apuHist = hist.filter(r => r.cabana === 'APUNAYNI').length;
   const salvHist= hist.filter(r => r.cabana === 'SALVAWASI').length;
+  const intiHist= hist.filter(r => r.cabana === 'INTIWASI').length;
   const el = document.getElementById('resActivas');
   if (el) el.textContent = activas.length;
   const elH = document.getElementById('resHist');
   if (elH) elH.textContent = hist.length;
-  // Update detailed breakdown
   const detail = document.getElementById('resBreakdown');
   if (detail) {
     detail.innerHTML =
@@ -2437,10 +2684,14 @@ function renderResSummary() {
       +'<div><div style="font-size:11px;color:#2ecc8a;font-weight:700">🏕 APUNAYNI</div>'
       +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+apuAct+' activas · '+apuHist+' históricas</div></div>'
       +'<div style="font-size:24px;font-weight:700;color:#2ecc8a">'+apuAct+'</div></div>'
-      +'<div style="background:rgba(240,192,96,0.1);border:1px solid #f0c060;border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div style="background:rgba(240,192,96,0.1);border:1px solid #f0c060;border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">'
       +'<div><div style="font-size:11px;color:#f0c060;font-weight:700">⛺ SALVAWASI</div>'
       +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+salvAct+' activas · '+salvHist+' históricas</div></div>'
-      +'<div style="font-size:24px;font-weight:700;color:#f0c060">'+salvAct+'</div></div>';
+      +'<div style="font-size:24px;font-weight:700;color:#f0c060">'+salvAct+'</div></div>'
+      +'<div style="background:var(--violet-dim);border:1px solid var(--violet);border-radius:8px;padding:10px 12px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<div><div style="font-size:11px;color:var(--violet);font-weight:700">🌄 INTIWASI</div>'
+      +'<div style="font-size:11px;color:var(--text3);margin-top:2px">'+intiAct+' activas · '+intiHist+' históricas</div></div>'
+      +'<div style="font-size:24px;font-weight:700;color:var(--violet)">'+intiAct+'</div></div>';
   }
 }
 
@@ -2500,9 +2751,16 @@ function getReservasDotsForDate(date) {
     if (date >= ini && date < fin) {
       if (r.cabana === 'APUNAYNI')  dotsSet.add('apunayni');
       if (r.cabana === 'SALVAWASI') dotsSet.add('salvawasi');
+      if (r.cabana === 'INTIWASI')  dotsSet.add('intiwasi');
     }
   });
   return [...dotsSet];
+}
+
+function cabColor(cabana) {
+  if (cabana === 'APUNAYNI')  return { border:'#2ecc8a', bg:'rgba(46,204,138,0.15)', text:'#2ecc8a' };
+  if (cabana === 'SALVAWASI') return { border:'#f0c060', bg:'rgba(240,192,96,0.15)',  text:'#f0c060' };
+  return { border:'var(--violet)', bg:'var(--violet-dim)', text:'var(--violet)' };
 }
 
 function showDayReservas(dateStr) {
@@ -2513,49 +2771,72 @@ function showDayReservas(dateStr) {
     const fin = new Date(r.fin);
     return date >= ini && date < fin;
   });
-  if (!matchingRes.length) {
-    document.getElementById('resModalBody').innerHTML =
-      '<div style="text-align:center;padding:10px">'
-      + '<div style="font-size:18px;font-weight:700;margin-bottom:8px">' + formatDateES(date) + '</div>'
-      + '<div style="color:var(--text3);font-size:13px;margin-bottom:16px">Fecha disponible — sin reservas</div>'
-      + '<button onclick="nuevaReserva(\''+dateStr+'\',\'APUNAYNI\')" style="display:block;width:100%;margin-bottom:8px;padding:10px;background:rgba(46,204,138,0.15);border:1px solid #2ecc8a;color:#2ecc8a;border-radius:8px;cursor:pointer;font-weight:600">+ Nueva en Apunayni</button>'
-      + '<button onclick="nuevaReserva(\''+dateStr+'\',\'SALVAWASI\')" style="display:block;width:100%;margin-bottom:14px;padding:10px;background:rgba(240,192,96,0.15);border:1px solid #f0c060;color:#f0c060;border-radius:8px;cursor:pointer;font-weight:600">+ Nueva en Salvawasi</button>'
-      + '<button onclick="closeResModalForced()" style="padding:8px 20px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>'
-      + '</div>';
-  } else {
-    let html = '<div style="font-size:16px;font-weight:700;margin-bottom:12px">' + formatDateES(date) + '</div>';
-    matchingRes.forEach(r => {
-      const cab = r.cabana.toLowerCase();
-      const est = r.estado.toLowerCase();
-      html += '<div style="background:var(--surface2);padding:12px;border-radius:8px;margin-bottom:10px;border-left:3px solid '+(cab==='apunayni'?'#2ecc8a':'#f0c060')+'">';
-      html += '<div style="display:flex;justify-content:space-between;margin-bottom:8px">';
-      html += '<span class="cab '+cab+'" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:rgba('+(cab==='apunayni'?'46,204,138':'240,192,96')+',0.15);color:'+(cab==='apunayni'?'#2ecc8a':'#f0c060')+'">'+r.cabana+'</span>';
-      html += '<span class="estado '+est+'" style="font-size:12px;font-weight:600;color:'+(est==='validado'?'var(--green)':est==='pendiente'?'var(--gold)':'var(--red)')+'">'+r.estado+'</span>';
-      html += '</div>';
-      html += '<div style="font-size:14px;font-weight:600;margin-bottom:6px">'+r.nombre+'</div>';
-      html += '<div class="modal-row"><span class="k">Cédula</span><span class="v">'+(r.cedula||'—')+'</span></div>';
-      html += '<div class="modal-row"><span class="k">Teléfono</span><span class="v">'+(r.telefono||'—')+'</span></div>';
-      html += '<div class="modal-row"><span class="k">Personas</span><span class="v">'+r.nPersonas+'</span></div>';
-      html += '<div class="modal-row"><span class="k">Fechas</span><span class="v">'+r.inicio+' → '+r.fin+'</span></div>';
-      html += '<div class="modal-row"><span class="k">Abono</span><span class="v" style="color:var(--green)">$'+fmtCOP(r.abono)+'</span></div>';
-      if (r.total > 0) {
-        html += '<div class="modal-row"><span class="k">Total</span><span class="v">$'+fmtCOP(r.total)+'</span></div>';
-        html += '<div class="modal-row"><span class="k">Saldo</span><span class="v" style="color:var(--gold)">$'+fmtCOP(r.saldo)+'</span></div>';
+
+  const cabanas = ['APUNAYNI','SALVAWASI','INTIWASI'];
+  const ocupadas = new Set(matchingRes.map(r => r.cabana));
+  const libres = cabanas.filter(c => !ocupadas.has(c));
+
+  let html = '<div style="font-size:16px;font-weight:700;margin-bottom:14px">' + formatDateES(date) + '</div>';
+
+  // Mostrar reservas existentes
+  matchingRes.forEach(r => {
+    const cc = cabColor(r.cabana);
+    const est = r.estado.toLowerCase();
+    const saldo = (r.total || 0) - (r.abono || 0);
+    html += '<div style="background:var(--surface2);padding:14px;border-radius:10px;margin-bottom:10px;border-left:3px solid '+cc.border+'">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+    const cabEmoji = r.cabana==='APUNAYNI'?'🏕 ':r.cabana==='SALVAWASI'?'⛺ ':'🌄 ';
+    html += '<span style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:10px;background:'+cc.bg+';color:'+cc.text+'">'+cabEmoji+r.cabana+'</span>';
+    html += '<span style="font-size:12px;font-weight:700;color:'+(est==='validado'?'var(--green)':est==='pendiente'?'var(--gold)':'var(--red)')+'">● '+(r.estado||'PENDIENTE')+'</span>';
+    html += '</div>';
+    html += '<div style="font-size:15px;font-weight:700;margin-bottom:8px">'+r.nombre+'</div>';
+    html += '<div class="modal-row"><span class="k">Cédula</span><span class="v">'+(r.cedula||'—')+'</span></div>';
+    html += '<div class="modal-row"><span class="k">Teléfono</span><span class="v">'+(r.telefono||'—')+'</span></div>';
+    html += '<div class="modal-row"><span class="k">Personas</span><span class="v">'+r.nPersonas+'</span></div>';
+    html += '<div class="modal-row"><span class="k">Llegada</span><span class="v">'+r.inicio+'</span></div>';
+    html += '<div class="modal-row"><span class="k">Salida</span><span class="v">'+r.fin+'</span></div>';
+    html += '<div class="modal-row"><span class="k">Abono</span><span class="v" style="color:var(--green)">$'+fmtCOP(r.abono||0)+'</span></div>';
+    if (r.total > 0) {
+      html += '<div class="modal-row"><span class="k">Total</span><span class="v">$'+fmtCOP(r.total)+'</span></div>';
+      if (saldo > 0) {
+        html += '<div style="margin-top:8px;padding:8px 12px;background:rgba(240,192,96,0.1);border:1px solid var(--gold);border-radius:8px;display:flex;justify-content:space-between;font-size:13px">'
+          +'<span style="color:var(--text2)">Pendiente por pagar</span>'
+          +'<span style="color:var(--gold);font-weight:700">= $'+fmtCOP(saldo)+'</span></div>';
       }
-      if (r.estado !== 'CANCELADO') {
-        html += '<div style="display:flex;gap:6px;margin-top:10px">';
-        if (r.estado === 'PENDIENTE') {
-          const precioSugerido = calcPrecio(r.nPersonas, r.frecuente);
-          html += '<button onclick="validarPago(\''+r.id+'\','+precioSugerido+')" style="flex:1;padding:9px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✓ Validar pago</button>';
-        }
-        html += '<button onclick="cancelarReserva(\''+r.id+'\')" style="flex:1;padding:9px;background:rgba(255,95,109,0.15);color:var(--red);border:1px solid var(--red);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✗ Cancelar</button>';
-        html += '</div>';
+    }
+    if (r.notas) html += '<div style="font-size:12px;color:var(--text3);margin-top:6px;font-style:italic">'+r.notas+'</div>';
+    if (r.estado !== 'CANCELADO') {
+      html += '<div style="display:flex;gap:6px;margin-top:12px;flex-wrap:wrap">';
+      if (r.estado === 'PENDIENTE' || r.estado === 'POR VALIDAR') {
+        const precioSugerido = calcPrecio(r.nPersonas, r.frecuente);
+        html += '<button onclick="validarPago(\''+r.id+'\','+precioSugerido+')" style="flex:1;min-width:100px;padding:9px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✓ Validar pago</button>';
       }
+      if (r.estado === 'VALIDADO') {
+        html += '<button onclick="closeResModalForced();sendConfirmacionWhatsApp(\''+r.id+'\')" style="flex:1;min-width:100px;padding:9px;background:rgba(37,211,102,0.15);color:#25d366;border:1px solid #25d366;border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">📲 Enviar confirmación</button>';
+      }
+      html += '<button onclick="cancelarReserva(\''+r.id+'\')" style="flex:1;min-width:80px;padding:9px;background:rgba(255,95,109,0.12);color:var(--red);border:1px solid var(--red);border-radius:8px;cursor:pointer;font-weight:600;font-size:12px">✗ Cancelar</button>';
       html += '</div>';
+    }
+    html += '</div>';
+  });
+
+  // Opciones para cabañas libres
+  if (libres.length) {
+    html += '<div style="margin-top:4px">';
+    libres.forEach(c => {
+      const cc = cabColor(c);
+      const emoji = c==='APUNAYNI'?'🏕':c==='SALVAWASI'?'⛺':'🌄';
+      html += '<button onclick="closeResModalForced();openNuevaReservaModal(\''+dateStr+'\',\''+c+'\')" '
+        +'style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:8px;padding:11px 14px;'
+        +'background:'+cc.bg+';border:1px solid '+cc.border+';color:'+cc.text+';'
+        +'border-radius:10px;cursor:pointer;font-weight:600;font-size:13px">'
+        +'<span>'+emoji+'</span><span>Añadir reserva en '+c+'</span></button>';
     });
-    html += '<button onclick="closeResModalForced()" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Cerrar</button>';
-    document.getElementById('resModalBody').innerHTML = html;
+    html += '</div>';
   }
+
+  html += '<button onclick="closeResModalForced()" style="width:100%;padding:9px;margin-top:4px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer;font-size:13px">Cerrar</button>';
+  document.getElementById('resModalBody').innerHTML = html;
   document.getElementById('resModal').classList.add('show');
 }
 
@@ -2641,74 +2922,279 @@ async function confirmarValidacion(id) {
   }
 }
 
-async function nuevaReserva(fechaInicio, cabana) {
-  const nombre = prompt('Nombre del cliente:');
-  if (!nombre) return;
-  const nPersonas = parseInt(prompt('Número de personas:', '2')) || 2;
-  const fechaFin = prompt('Fecha de salida (YYYY-MM-DD):', addDaysISO(fechaInicio, 1));
-  if (!fechaFin) return;
-  const abono = parseFloat(prompt('Abono recibido:', '0')) || 0;
-  const telefono = prompt('Teléfono (opcional):') || '';
-  const cedula = prompt('Cédula (opcional):') || '';
+// ── Estado del formulario de nueva reserva ─────────────────────────────
+let nrState = {
+  cabana: null, personasExtra: [], abonos: [], mascota: null, transporte: null, editId: null
+};
+
+function openNuevaReservaModal(fechaInicio, cabana) {
+  nrState = { cabana: null, personasExtra: [], abonos: [], mascota: null, transporte: null, editId: null };
+  document.getElementById('nuevaResTitle').textContent = 'Nueva reserva';
+  document.getElementById('nrNombre').value = '';
+  document.getElementById('nrCedula').value = '';
+  document.getElementById('nrTelefono').value = '';
+  document.getElementById('nrTotal').value = '';
+  document.getElementById('nrAnticipo').value = '';
+  document.getElementById('nrNotas').value = '';
+  document.getElementById('personasList').innerHTML = '';
+  document.getElementById('abonosList').innerHTML = '';
+  document.querySelectorAll('.transp-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.mascota-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.cab-btn').forEach(b => b.classList.remove('active'));
+
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('nrFechaInicio').value = fechaInicio || today;
+  document.getElementById('nrFechaFin').value = fechaInicio ? addDaysISO(fechaInicio, 1) : addDaysISO(today, 1);
+
+  if (cabana) selectCabana(cabana);
+  updatePersonasCount();
+  calcNRSaldo();
+  document.getElementById('nuevaResSheet').classList.add('open');
+}
+
+function closeNuevaReservaModal(e) {
+  if (e && e.target !== document.getElementById('nuevaResSheet')) return;
+  document.getElementById('nuevaResSheet').classList.remove('open');
+}
+
+function selectCabana(c) {
+  nrState.cabana = c;
+  document.querySelectorAll('.cab-btn').forEach(b => b.classList.remove('active'));
+  const map = { APUNAYNI:'cabBtn_APUNAYNI', SALVAWASI:'cabBtn_SALVAWASI', INTIWASI:'cabBtn_INTIWASI' };
+  const el = document.getElementById(map[c]);
+  if (el) el.classList.add('active');
+}
+
+function addPersonaExtra() {
+  const idx = nrState.personasExtra.length;
+  nrState.personasExtra.push({ nombre:'', cedula:'' });
+  const row = document.createElement('div');
+  row.className = 'persona-row';
+  row.id = 'personaRow'+idx;
+  row.innerHTML = `
+    <input type="text" class="form-input" placeholder="Nombre" oninput="nrState.personasExtra[${idx}].nombre=this.value">
+    <input type="text" class="form-input" placeholder="Cédula" inputmode="numeric" oninput="nrState.personasExtra[${idx}].cedula=this.value">
+    <button class="persona-remove" onclick="removePersona(${idx})">−</button>`;
+  document.getElementById('personasList').appendChild(row);
+  updatePersonasCount();
+}
+
+function removePersona(idx) {
+  nrState.personasExtra.splice(idx, 1);
+  renderPersonasList();
+}
+
+function renderPersonasList() {
+  const list = document.getElementById('personasList');
+  list.innerHTML = '';
+  nrState.personasExtra.forEach((p, idx) => {
+    const row = document.createElement('div');
+    row.className = 'persona-row';
+    row.innerHTML = `
+      <input type="text" class="form-input" placeholder="Nombre" value="${p.nombre}" oninput="nrState.personasExtra[${idx}].nombre=this.value">
+      <input type="text" class="form-input" placeholder="Cédula" inputmode="numeric" value="${p.cedula}" oninput="nrState.personasExtra[${idx}].cedula=this.value">
+      <button class="persona-remove" onclick="removePersona(${idx})">−</button>`;
+    list.appendChild(row);
+  });
+  updatePersonasCount();
+}
+
+function updatePersonasCount() {
+  const el = document.getElementById('nrTotalPersonas');
+  if (el) el.textContent = 1 + nrState.personasExtra.length;
+}
+
+function addAbono() {
+  const idx = nrState.abonos.length;
+  nrState.abonos.push({ valor: 0 });
+  const row = document.createElement('div');
+  row.className = 'abono-row';
+  row.innerHTML = `
+    <div class="valor-input-wrap" style="flex:1">
+      <span class="valor-prefix">$</span>
+      <input type="number" inputmode="numeric" class="form-input" placeholder="0" oninput="nrState.abonos[${idx}].valor=parseFloat(this.value)||0;calcNRSaldo()">
+    </div>
+    <button class="abono-remove" onclick="removeAbono(${idx})">−</button>`;
+  document.getElementById('abonosList').appendChild(row);
+}
+
+function removeAbono(idx) {
+  nrState.abonos.splice(idx, 1);
+  renderAbonosList();
+  calcNRSaldo();
+}
+
+function renderAbonosList() {
+  const list = document.getElementById('abonosList');
+  list.innerHTML = '';
+  nrState.abonos.forEach((a, idx) => {
+    const row = document.createElement('div');
+    row.className = 'abono-row';
+    row.innerHTML = `
+      <div class="valor-input-wrap" style="flex:1">
+        <span class="valor-prefix">$</span>
+        <input type="number" inputmode="numeric" class="form-input" value="${a.valor||''}" placeholder="0" oninput="nrState.abonos[${idx}].valor=parseFloat(this.value)||0;calcNRSaldo()">
+      </div>
+      <button class="abono-remove" onclick="removeAbono(${idx})">−</button>`;
+    list.appendChild(row);
+  });
+}
+
+function calcNRSaldo() {
+  const total    = parseFloat(document.getElementById('nrTotal')?.value) || 0;
+  const anticipo = parseFloat(document.getElementById('nrAnticipo')?.value) || 0;
+  const extrasSum = nrState.abonos.reduce((s, a) => s + (a.valor||0), 0);
+  const saldo = Math.max(0, total - anticipo - extrasSum);
+  const el = document.getElementById('nrSaldo');
+  if (el) el.textContent = '$' + fmtCOP(saldo);
+}
+
+function marcarPagoCompleto() {
+  const total = parseFloat(document.getElementById('nrTotal')?.value) || 0;
+  if (!total) { showToast('Primero ingresa el valor total', 'error'); return; }
+  const anticipo = parseFloat(document.getElementById('nrAnticipo')?.value) || 0;
+  const extrasSum = nrState.abonos.reduce((s, a) => s + (a.valor||0), 0);
+  const pendiente = total - anticipo - extrasSum;
+  if (pendiente > 0) {
+    // Agregar abono por el valor restante
+    const idx = nrState.abonos.length;
+    nrState.abonos.push({ valor: pendiente });
+    renderAbonosList();
+  }
+  calcNRSaldo();
+  showToast('✓ Pago completado automáticamente', 'success');
+}
+
+function setMascota(val) {
+  nrState.mascota = val;
+  document.getElementById('mascotaSi').classList.toggle('active', val === true);
+  document.getElementById('mascotaNo').classList.toggle('active', val === false);
+}
+
+function setTransporte(el, val) {
+  nrState.transporte = val;
+  document.querySelectorAll('.transp-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+async function submitNuevaReserva() {
+  const cabana    = nrState.cabana;
+  const nombre    = document.getElementById('nrNombre').value.trim();
+  const cedula    = document.getElementById('nrCedula').value.trim();
+  const telefono  = document.getElementById('nrTelefono').value.trim();
+  const inicio    = document.getElementById('nrFechaInicio').value;
+  const fin       = document.getElementById('nrFechaFin').value;
+  const total     = parseFloat(document.getElementById('nrTotal').value) || 0;
+  const anticipo  = parseFloat(document.getElementById('nrAnticipo').value) || 0;
+  const notas     = document.getElementById('nrNotas').value.trim();
+
+  if (!cabana)  { showToast('Selecciona una cabaña', 'error'); return; }
+  if (!nombre)  { showToast('Ingresa el nombre del titular', 'error'); return; }
+  if (!inicio || !fin) { showToast('Ingresa las fechas', 'error'); return; }
+  if (fin <= inicio)   { showToast('La salida debe ser posterior a la llegada', 'error'); return; }
+
+  const extrasSum = nrState.abonos.reduce((s, a) => s + (a.valor||0), 0);
+  const abonoTotal = anticipo + extrasSum;
+  const saldo = Math.max(0, total - abonoTotal);
+  const nPersonas = 1 + nrState.personasExtra.length;
+
+  const notasFull = [
+    notas,
+    nrState.mascota === true ? '🐶 Mascota: Sí' : nrState.mascota === false ? 'Sin mascota' : '',
+    nrState.transporte ? '🚗 Transporte: ' + nrState.transporte : '',
+    nrState.personasExtra.length ? 'Grupo: ' + nrState.personasExtra.map(p => p.nombre + (p.cedula?' ('+p.cedula+')':'')).join(', ') : ''
+  ].filter(Boolean).join(' | ');
+
+  const btn = document.getElementById('nrSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Guardando...';
 
   const scriptUrl = localStorage.getItem('scriptUrl');
-  if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
+  if (!scriptUrl) { showToast('Falta URL del Apps Script en Config', 'error'); btn.disabled=false; btn.textContent='Guardar reserva'; return; }
+
   try {
     const res = await fetch(scriptUrl, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
-        action:'createReserva', userEmail: getUserEmail(),
-        cabana, fecha_inicio: fechaInicio, fecha_fin: fechaFin,
-        nombre, n_personas: nPersonas, abono, telefono, cedula
+        action: nrState.editId ? 'updateReserva' : 'createReserva',
+        userEmail: getUserEmail(),
+        id: nrState.editId,
+        cabana, fecha_inicio: inicio, fecha_fin: fin,
+        nombre, cedula, telefono,
+        n_personas: nPersonas,
+        abono: abonoTotal, total, saldo,
+        notas: notasFull,
+        mascota: nrState.mascota,
+        transporte: nrState.transporte,
+        personas_extra: JSON.stringify(nrState.personasExtra)
       })
     });
     const data = await res.json();
-    if (data.ok) {
-      alert('Reserva creada: ' + data.id);
-      closeResModalForced();
-      initReservas();
+    if (data.ok || data.id) {
+      showToast(nrState.editId ? '✓ Reserva actualizada' : '✓ Reserva creada', 'success');
+      document.getElementById('nuevaResSheet').classList.remove('open');
+      await initReservas();
     } else {
-      alert('Error: ' + (data.error || 'desconocido'));
+      showToast('Error: ' + (data.error || 'desconocido'), 'error');
     }
   } catch(e) {
-    alert('Error de conexión: ' + e.message);
+    showToast('Error de conexión: ' + e.message, 'error');
   }
+  btn.disabled = false; btn.textContent = 'Guardar reserva';
 }
 
 async function cancelarReserva(id) {
-  const motivo = prompt('Motivo de cancelación (opcional):') || '';
-  const fecha = prompt('Fecha de la reserva (YYYY-MM-DD):');
-  if (!fecha) return;
-  const hoursToReservation = (new Date(fecha) - new Date()) / (1000*60*60);
-  const reembolsoSugerido = hoursToReservation >= 48 ? 100 : 0;
-  const pct = parseFloat(prompt('Porcentaje de reembolso (0-100):', reembolsoSugerido));
-  if (isNaN(pct)) return;
+  const r = reservasData.find(x => x.id === id);
+  const ini = r ? new Date(r.inicio) : new Date();
+  const hoursToRes = (ini - new Date()) / (1000*60*60);
+  const reembolsoSugerido = hoursToRes >= 48 ? 100 : 0;
 
+  // Mostrar panel de cancelación en el modal
+  document.getElementById('resModalBody').innerHTML =
+    '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Cancelar reserva</div>'
+    + '<div style="font-size:13px;color:var(--text2);margin-bottom:4px">Cliente: <strong>'+(r?r.nombre:'—')+'</strong></div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Cabaña: '+(r?r.cabana:'—')+' · '+ini.toLocaleDateString('es-CO')+'</div>'
+    + '<div class="form-group" style="margin-bottom:10px">'
+    + '<label class="form-label" style="font-size:12px">Motivo (opcional)</label>'
+    + '<input type="text" id="cancelMotivo" class="form-input" placeholder="Motivo de cancelación">'
+    + '</div>'
+    + '<div style="background:var(--surface2);padding:10px 12px;border-radius:8px;margin-bottom:14px;font-size:12px;color:var(--text3)">'
+    + '⏱ '+(hoursToRes>=48?'Más de 48h → <strong style="color:var(--green)">reembolso recomendado</strong>':'Menos de 48h → <strong style="color:var(--red)">sin reembolso</strong>')
+    + '</div>'
+    + '<div class="form-group" style="margin-bottom:14px">'
+    + '<label class="form-label" style="font-size:12px">Porcentaje de reembolso</label>'
+    + '<input type="number" id="cancelPct" class="form-input" value="'+reembolsoSugerido+'" min="0" max="100">'
+    + '</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button onclick="showDayReservas(\''+ini.toISOString().slice(0,10)+'\')" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Volver</button>'
+    + '<button onclick="confirmarCancelacion(\''+id+'\')" style="flex:1;padding:10px;background:rgba(255,95,109,0.15);border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-weight:600">Confirmar cancelación</button>'
+    + '</div>';
+}
+
+async function confirmarCancelacion(id) {
+  const motivo = (document.getElementById('cancelMotivo')?.value || '').trim();
+  const pct    = parseFloat(document.getElementById('cancelPct')?.value) || 0;
   const scriptUrl = localStorage.getItem('scriptUrl');
-  if (!scriptUrl) { alert('Falta URL del Apps Script en Config'); return; }
+  if (!scriptUrl) { showToast('Falta URL del Apps Script', 'error'); return; }
   try {
     const res = await fetch(scriptUrl, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},
       body: JSON.stringify({
         action:'updateReserva', userEmail: getUserEmail(),
-        id,
-        estado_pago: 'CANCELADO',
-        notas: 'Cancelada. ' + motivo + ' Reembolso: ' + pct + '%'
+        id, estado_pago:'CANCELADO',
+        notas: 'Cancelada. '+(motivo?motivo+'. ':'')+' Reembolso: '+pct+'%'
       })
     });
     const data = await res.json();
     if (data.ok) {
-      alert('Reserva cancelada');
+      showToast('Reserva cancelada', 'success');
       closeResModalForced();
-      initReservas();
+      await initReservas();
     } else {
-      alert('Error: ' + (data.error || 'desconocido'));
+      showToast('Error: '+(data.error||'desconocido'), 'error');
     }
-  } catch(e) {
-    alert('Error: ' + e.message);
-  }
+  } catch(e) { showToast('Error: '+e.message, 'error'); }
 }
 
 function addDaysISO(isoDate, days) {
@@ -2731,13 +3217,16 @@ function renderResList() {
   }
 
   document.getElementById('resListActivas').innerHTML = activas.map(r => {
+    const saldo = Math.max(0,(r.total||0)-(r.abono||0));
+    const estColor = r.estado==='VALIDADO'?'var(--green)':r.estado==='CANCELADO'?'var(--red)':'var(--gold)';
     return '<div class="res-list-item" onclick="showDayReservas(\''+r.inicio+'\')">'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
       + '<span class="cab '+r.cabana.toLowerCase()+'">'+r.cabana+'</span>'
-      + '<span class="estado '+r.estado.toLowerCase()+'" style="font-size:11px;font-weight:600">'+r.estado+'</span>'
+      + '<span style="font-size:11px;font-weight:600;color:'+estColor+'">'+r.estado+'</span>'
       + '</div>'
       + '<div style="font-size:14px;font-weight:600">'+r.nombre+'</div>'
       + '<div style="font-size:12px;color:var(--text3);margin-top:2px">'+r.inicio+' → '+r.fin+' · '+r.nPersonas+' personas</div>'
+      + (saldo>0?'<div style="font-size:12px;color:var(--gold);margin-top:3px">Pendiente: $'+fmtCOP(saldo)+'</div>':'')
       + '</div>';
   }).join('');
 }
@@ -2752,21 +3241,21 @@ function buildDisponibilidadMessage(cabana) {
   const today = new Date(); today.setHours(0,0,0,0);
   const endDate = new Date(today.getFullYear(), today.getMonth() + 4, 0);
 
-  // Build set of occupied dates (each "noche" is start date)
-  const ocupadas = new Set();
+  // Mapa iso → nombre de quien reservó
+  const ocupadasMap = {};
   reservasData.forEach(r => {
     if (r.estado === 'CANCELADO' || r.cabana !== cabana) return;
     const ini = new Date(r.inicio);
     const fin = new Date(r.fin);
     for (let d = new Date(ini); d < fin; d.setDate(d.getDate()+1)) {
-      ocupadas.add(d.toISOString().slice(0,10));
+      const iso = d.toISOString().slice(0,10);
+      ocupadasMap[iso] = r.nombre || 'Reservado';
     }
   });
 
   const diasNom  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const mesesNom = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-  // Festivos colombianos 2026
   const festivos2026 = new Set([
     '2026-01-01','2026-01-12','2026-03-23','2026-04-02','2026-04-03',
     '2026-05-01','2026-05-18','2026-06-08','2026-06-29','2026-07-20',
@@ -2774,8 +3263,12 @@ function buildDisponibilidadMessage(cabana) {
     '2026-12-08','2026-12-25'
   ]);
 
-  const cabanaLabel = cabana === 'APUNAYNI' ? 'Apunayni' : 'SalvaWasi';
-  let txt = 'Próximas fechas disponibles *' + cabanaLabel + '*\n';
+  const cabLabels = { APUNAYNI:'Apunayni', SALVAWASI:'SalvaWasi', INTIWASI:'Intiwasi' };
+  const cabEmojis = { APUNAYNI:'🏕️', SALVAWASI:'⛺️', INTIWASI:'🌄' };
+  const cabLabel = cabLabels[cabana] || cabana;
+  const cabEmoji = cabEmojis[cabana] || '🏕️';
+
+  let txt = cabEmoji + cabLabel + ' Visitas\n';
   txt += '🏕️Fin de semana y festivos\n';
   txt += '⛺️Días en semana\n';
 
@@ -2789,30 +3282,29 @@ function buildDisponibilidadMessage(cabana) {
       txt += '\n*' + mesesNom[currentMonth] + ' ' + currentYear + '*\n';
     }
     const iso = d.toISOString().slice(0,10);
-    if (ocupadas.has(iso)) continue;
-
     const next = new Date(d); next.setDate(next.getDate()+1);
     const dowNow  = d.getDay();
     const dowNext = next.getDay();
 
-    // Festivo: día actual es festivo, o el día siguiente lo es (porque la noche cuenta)
     const isFestNow  = festivos2026.has(iso);
     const isFestNext = festivos2026.has(next.toISOString().slice(0,10));
-
-    // Fin de semana: viernes-sábado, sábado-domingo, domingo-lunes (puente)
-    const isFinde = (dowNow === 5 || dowNow === 6 || dowNow === 0 ||
-                     isFestNow || isFestNext);
-
+    const isFinde = (dowNow === 5 || dowNow === 6 || dowNow === 0 || isFestNow || isFestNext);
     const emoji = isFinde ? '🏕️' : '⛺️';
     const sufijo = (isFestNow || isFestNext) ? ' (Festivo)' : '';
 
-    // "Lunes 4 a Martes 5"
-    // If month crosses, add "(mes)"
     let nextLabel = diasNom[dowNext] + ' ' + next.getDate();
     if (next.getMonth() !== d.getMonth()) {
       nextLabel = diasNom[dowNext] + ' ' + next.getDate() + ' (' + mesesNom[next.getMonth()].toLowerCase() + ')';
     }
-    txt += emoji + diasNom[dowNow] + ' ' + d.getDate() + ' a ' + nextLabel + sufijo + '\n';
+    const linea = emoji + diasNom[dowNow] + ' ' + d.getDate() + ' a ' + nextLabel + sufijo;
+
+    if (ocupadasMap[iso]) {
+      // Nombre corto (primer nombre)
+      const nombreCorto = ocupadasMap[iso].split(' ')[0];
+      txt += '- [x] ' + linea + ':' + nombreCorto + '\n';
+    } else {
+      txt += '- [ ] ' + linea + '\n';
+    }
   }
   return txt;
 }
@@ -2821,6 +3313,257 @@ function formatDateES(date) {
   const dias = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   return dias[date.getDay()] + ', ' + date.getDate() + ' de ' + meses[date.getMonth()] + ' de ' + date.getFullYear();
+}
+
+function fmtDateCO(isoStr) {
+  if (!isoStr) return '—';
+  const [y,m,d] = isoStr.slice(0,10).split('-');
+  return d+'/'+m+'/'+y;
+}
+
+// ── Confirmación WhatsApp (formato cliente) ────────────────────────────────
+function buildConfirmacionMsg(r) {
+  const saldo = Math.max(0, (r.total||0) - (r.abono||0));
+  const mascota = (r.notas||'').includes('Mascota: Sí');
+  const cabEmojis = { APUNAYNI:'🏕️', SALVAWASI:'⛺️', INTIWASI:'🌄' };
+  const cabEmoji = cabEmojis[r.cabana] || '🏕️';
+  return `✅*Confirmación De Reserva*
+
+📅 *Fecha de llegada:* ${fmtDateCO(r.inicio)}
+🕣 De *3:00 pm* en adelante
+*Recuerda que el ingreso al lugar es hasta máximo las 6:30 p.m*
+
+📅 *Fecha de salida:* ${fmtDateCO(r.fin)}
+🕣Hasta la *1:00 pm*
+
+*Abono:* $${fmtCOP(r.abono||0)}
+*Restante:* ${saldo > 0 ? '$'+fmtCOP(saldo) : '✅ Pagado'}
+
+El valor restante se paga el día de la visita, puede ser en efectivo o a través de transferencia
+
+*Políticas de cancelación*
+Puedes cancelar o reprogramar tu visita hasta 48 horas antes del día de la reserva.
+Las cancelaciones o cambios realizados con menos de 48 horas de anticipación no tienen reembolso.
+${mascota ? '\n🐶Recuerda informarnos si nos visitas con tu mascota, además recuerda traer su propia manta para la estadía\n' : ''}
+💚Todo está listo para tu visita, esperamos puedas disfrutar de la tranquilidad que puede llegar a brindar este espacio, te deseamos la mejor experiencia en nuestro ${cabEmoji}
+
+Si tienes alguna duda o necesitas algo, ¡escríbenos sin problema✌🏻
+
+🌳 ¡Nos vemos pronto! 🌳
+
+*🌎Ubicación:*
+https://maps.app.goo.gl/hZb4mKKcvGyyf4E29?g_st=iw`;
+}
+
+// ── Gestión interna (para el equipo) ─────────────────────────────────────
+function buildGestionInternaMsg(r) {
+  const saldo = Math.max(0, (r.total||0) - (r.abono||0));
+  const notas = r.notas || '';
+  // Extraer personas del grupo de las notas
+  const grupoMatch = notas.match(/Grupo: ([^|]+)/);
+  const grupo = grupoMatch ? grupoMatch[1].trim() : '';
+  const mascota = notas.includes('Mascota: Sí') ? '🐶 Sí' : notas.includes('Sin mascota') ? '🚫 No' : '—';
+  const transpMatch = notas.match(/Transporte: ([^|]+)/);
+  const transporte = transpMatch ? transpMatch[1].trim() : '—';
+  const cabEmojis = { APUNAYNI:'🏕️', SALVAWASI:'⛺️', INTIWASI:'🌄' };
+  const cabEmoji = cabEmojis[r.cabana] || '🏕️';
+
+  return `📋 *GESTIÓN INTERNA — ${r.cabana}* ${cabEmoji}
+━━━━━━━━━━━━━━━━━━━━
+👤 *Titular:* ${r.nombre}
+📄 *Cédula:* ${r.cedula||'—'}
+📱 *Teléfono:* ${r.telefono||'—'}
+👥 *N.° personas:* ${r.nPersonas||1}
+${grupo ? '🫂 *Grupo:* '+grupo+'\n' : ''}
+📅 *Llegada:* ${fmtDateCO(r.inicio)} (desde 3:00 pm)
+📅 *Salida:* ${fmtDateCO(r.fin)} (hasta 1:00 pm)
+━━━━━━━━━━━━━━━━━━━━
+💰 *Total:* $${fmtCOP(r.total||0)}
+✅ *Abono:* $${fmtCOP(r.abono||0)}
+${saldo > 0 ? '⏳ *Pendiente:* $'+fmtCOP(saldo) : '✅ *Estado pago:* COMPLETADO'}
+📌 *Estado:* ${r.estado||'PENDIENTE'}
+━━━━━━━━━━━━━━━━━━━━
+🐶 *Mascota:* ${mascota}
+🚗 *Transporte:* ${transporte}
+${notas ? '📝 *Notas:* '+notas : ''}`;
+}
+
+let _pendingShareMsgs = {};
+
+function sendConfirmacionWhatsApp(id) {
+  const r = reservasData.find(x => x.id === id);
+  if (!r) { showToast('Reserva no encontrada', 'error'); return; }
+  const msgCliente = buildConfirmacionMsg(r);
+  const msgInterno = buildGestionInternaMsg(r);
+  _pendingShareMsgs = { cliente: msgCliente, interno: msgInterno };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'shareOverlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:300;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--surface);border-radius:16px;padding:20px;width:100%;max-width:400px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:4px">Compartir reserva</div>
+      <div style="font-size:12px;color:var(--text3);margin-bottom:16px">${r.nombre} · ${r.cabana}</div>
+      <button onclick="shareMsg('wa')" style="display:flex;align-items:center;gap:10px;width:100%;margin-bottom:10px;padding:13px 16px;background:rgba(37,211,102,0.12);border:1px solid #25d366;border-radius:12px;cursor:pointer;color:#25d366;font-weight:600;font-size:14px">
+        <span style="font-size:20px">📲</span>
+        <div style="text-align:left"><div>Confirmación al cliente</div><div style="font-size:11px;color:var(--text3);font-weight:400">Abrir WhatsApp con mensaje</div></div>
+      </button>
+      <button onclick="shareMsg('copy')" style="display:flex;align-items:center;gap:10px;width:100%;margin-bottom:16px;padding:13px 16px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:12px;cursor:pointer;color:var(--accent);font-weight:600;font-size:14px">
+        <span style="font-size:20px">📋</span>
+        <div style="text-align:left"><div>Ficha de gestión interna</div><div style="font-size:11px;color:var(--text3);font-weight:400">Copiar al portapapeles</div></div>
+      </button>
+      <button onclick="document.getElementById('shareOverlay')?.remove()" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:10px;cursor:pointer;font-size:13px">Cerrar</button>
+    </div>`;
+  overlay.addEventListener('click', e => { if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+async function shareMsg(mode) {
+  document.getElementById('shareOverlay')?.remove();
+  const msg = mode === 'wa' ? _pendingShareMsgs.cliente : _pendingShareMsgs.interno;
+  if (!msg) return;
+  if (mode === 'wa') {
+    if (navigator.share) {
+      try { await navigator.share({ text: msg }); return; } catch(e) { if(e.name==='AbortError') return; }
+    }
+    window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  } else {
+    try {
+      await navigator.clipboard.writeText(msg);
+      showToast('📋 Ficha copiada al portapapeles', 'success');
+    } catch(e) {
+      const ta = document.createElement('textarea');
+      ta.value = msg; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove();
+      showToast('📋 Copiado', 'success');
+    }
+  }
+}
+
+// ── Buscador de reservas ──────────────────────────────────────────────────
+function buscarReserva(query) {
+  const q = (query||'').trim().toLowerCase();
+  const resultsEl = document.getElementById('searchResults');
+  if (!q) { resultsEl.style.display = 'none'; return; }
+
+  const matches = reservasData.filter(r => {
+    if (r.estado === 'CANCELADO') return false;
+    return (r.nombre||'').toLowerCase().includes(q)
+        || (r.cedula||'').toLowerCase().includes(q)
+        || (r.telefono||'').toLowerCase().includes(q)
+        || (r.inicio||'').includes(q)
+        || (r.fin||'').includes(q);
+  }).slice(0, 8);
+
+  if (!matches.length) {
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div style="padding:12px;text-align:center;color:var(--text3);font-size:13px">Sin resultados</div>';
+    return;
+  }
+
+  resultsEl.style.display = 'block';
+  resultsEl.innerHTML = matches.map(r => {
+    const cc = r.cabana==='APUNAYNI'?'#2ecc8a':r.cabana==='SALVAWASI'?'#f0c060':'var(--violet)';
+    const saldo = Math.max(0, (r.total||0)-(r.abono||0));
+    return `<div onclick="document.getElementById('resSearchInput').value='';buscarReserva('');showDayReservas('${r.inicio}')"
+      style="padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;background:var(--surface);border-radius:10px;margin-bottom:6px;border-left:3px solid ${cc}">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:14px;font-weight:600">${r.nombre}</span>
+        <span style="font-size:11px;color:${cc};font-weight:700">${r.cabana}</span>
+      </div>
+      <div style="font-size:12px;color:var(--text3)">${r.inicio} → ${r.fin} · ${r.nPersonas} personas</div>
+      ${saldo>0?`<div style="font-size:12px;color:var(--gold);margin-top:2px">Pendiente: $${fmtCOP(saldo)}</div>`:''}
+    </div>`;
+  }).join('');
+  // cerrar resultados al hacer tap fuera
+  resultsEl.innerHTML += `<div style="padding:8px;text-align:center"><button onclick="document.getElementById('resSearchInput').value='';buscarReserva('')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer">Limpiar búsqueda</button></div>`;
+}
+
+// ── Cobros pendientes ─────────────────────────────────────────────────────
+let cobrosFilter = 'all';
+
+function setCobrosFilter(f) {
+  cobrosFilter = f;
+  document.querySelectorAll('.cobro-filter-btn').forEach(b => {
+    const active = b.id === 'cft_' + f;
+    b.style.background = active ? 'var(--accent-dim)' : 'var(--surface2)';
+    b.style.borderColor = active ? 'var(--accent)' : 'var(--border2)';
+    b.style.color = active ? 'var(--text)' : 'var(--text2)';
+    b.style.fontWeight = active ? '600' : '400';
+  });
+  const customEl = document.getElementById('cobrosCustomRange');
+  if (customEl) customEl.style.display = f === 'custom' ? 'flex' : 'none';
+  if (customEl) customEl.style.flexDirection = 'column';
+  renderCobrosPanel();
+}
+
+function renderCobrosPanel() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  let desde = new Date(hoy);
+  let hasta = null;
+
+  if (cobrosFilter === 'mes') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+  } else if (cobrosFilter === 'next') {
+    desde = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+    hasta = new Date(hoy.getFullYear(), hoy.getMonth() + 2, 0);
+  } else if (cobrosFilter === 'custom') {
+    const desdeVal = document.getElementById('cobrosDesde')?.value;
+    const hastaVal = document.getElementById('cobrosHasta')?.value;
+    if (desdeVal) desde = new Date(desdeVal + 'T00:00');
+    if (hastaVal) hasta = new Date(hastaVal + 'T00:00');
+  }
+
+  const pendientes = reservasData.filter(r => {
+    if (r.estado === 'CANCELADO') return false;
+    const ini = new Date(r.inicio);
+    if (ini < hoy) return false;
+    if (ini < desde) return false;
+    if (hasta && ini > hasta) return false;
+    const saldo = Math.max(0, (r.total||0)-(r.abono||0));
+    return saldo > 0 || (r.total||0) > 0;
+  }).sort((a,b) => new Date(a.inicio)-new Date(b.inicio));
+
+  const totalPendiente = pendientes.reduce((s,r) => s + Math.max(0,(r.total||0)-(r.abono||0)), 0);
+  const totalEsperado  = pendientes.reduce((s,r) => s + (r.total||0), 0);
+
+  const el = document.getElementById('cobrosBody');
+  if (!el) return;
+
+  if (!pendientes.length) {
+    el.innerHTML = '<div style="text-align:center;padding:14px;color:var(--text3);font-size:13px">Sin cobros en este período</div>';
+    return;
+  }
+
+  let html = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">TOTAL ESPERADO</div>
+      <div style="font-size:17px;font-weight:700;color:var(--green)">$${fmtCOP(totalEsperado)}</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid var(--border)">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">PENDIENTE POR COBRAR</div>
+      <div style="font-size:17px;font-weight:700;color:var(--gold)">$${fmtCOP(totalPendiente)}</div>
+    </div>
+  </div>`;
+
+  pendientes.forEach(r => {
+    const saldo = Math.max(0,(r.total||0)-(r.abono||0));
+    const cc = r.cabana==='APUNAYNI'?'#2ecc8a':r.cabana==='SALVAWASI'?'#f0c060':'var(--violet)';
+    html += `<div class="cobro-row" onclick="showDayReservas('${r.inicio}')" style="cursor:pointer">
+      <div>
+        <div class="cobro-nombre">${r.nombre}</div>
+        <div class="cobro-sub">${r.cabana} · ${r.inicio}</div>
+        ${r.abono>0?`<div style="font-size:11px;color:var(--green)">Abono: $${fmtCOP(r.abono)}</div>`:''}
+      </div>
+      <div style="text-align:right">
+        ${saldo>0?`<div class="cobro-val">$${fmtCOP(saldo)}</div><div style="font-size:11px;color:var(--text3)">pendiente</div>`:`<div style="font-size:13px;font-weight:700;color:var(--green)">✓ Pagado</div>`}
+      </div>
+    </div>`;
+  });
+
+  el.innerHTML = html;
 }
 
 // ═════════════════════════════════════════════════════════
