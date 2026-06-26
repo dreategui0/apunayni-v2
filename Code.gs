@@ -3,7 +3,7 @@
 // Proxy seguro: contabilidad + agente IA + reservas
 // ============================================================
 
-var CLAUDE_API_KEY = 'TU_CLAUDE_API_KEY_AQUI'; // Reemplaza con tu API key real (no subir al repo)
+var CLAUDE_API_KEY = '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';
 var SHEET_ID       = '1ueAv6JhzTYhJ7y3ug-N6-IbPBOfuuGL4rUKUE1WuHaQ';
 var CLAUDE_MODEL   = 'claude-sonnet-4-5';
 
