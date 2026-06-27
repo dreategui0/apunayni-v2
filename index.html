@@ -1048,7 +1048,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.7</span>
+          <span class="config-val">2.7.8</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -2877,17 +2877,20 @@ function calcPrecio(nPersonas, frecuente) {
 }
 
 function validarPago(id, precioSugerido) {
-  // Buscar la reserva para conocer abono actual
+  // Buscar la reserva para conocer total y abono actual
   const r = reservasData.find(x => x.id === id);
-  const abonoActual = r ? r.abono : 0;
-  const totalActual = r ? r.total : precioSugerido;
+  const abonoActual = r ? (parseFloat(r.abono) || 0) : 0;
+  // Si la reserva ya tiene un total guardado > 0, usar ese (lo que el usuario puso al crearla)
+  // Solo usar precioSugerido como fallback cuando el total es 0
+  const totalGuardado = r ? (parseFloat(r.total) || 0) : 0;
+  const totalInicial = totalGuardado > 0 ? totalGuardado : precioSugerido;
   document.getElementById('resModalBody').innerHTML =
     '<div style="font-size:16px;font-weight:700;margin-bottom:14px">Validar pago</div>'
     + '<div style="font-size:12px;color:var(--text3);margin-bottom:6px">Cliente: ' + (r ? r.nombre : '—') + '</div>'
-    + '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Sugerido por sistema: $' + fmtCOP(precioSugerido) + '</div>'
+    + '<div style="font-size:12px;color:var(--text3);margin-bottom:14px">Sugerido por sistema: $' + fmtCOP(precioSugerido) + (totalGuardado>0 && totalGuardado!==precioSugerido ? ' · Guardado: $' + fmtCOP(totalGuardado) : '') + '</div>'
     + '<div class="form-group" style="margin-bottom:10px">'
     + '<label class="form-label" style="font-size:12px">Total del alquiler</label>'
-    + '<input type="number" id="vpTotal" class="form-input" value="' + (totalActual || precioSugerido) + '" style="font-size:15px">'
+    + '<input type="number" id="vpTotal" class="form-input" value="' + totalInicial + '" style="font-size:15px">'
     + '</div>'
     + '<div class="form-group" style="margin-bottom:14px">'
     + '<label class="form-label" style="font-size:12px">Abono recibido</label>'
@@ -3053,7 +3056,9 @@ function renderPersonasList() {
 
 function updatePersonasCount() {
   const el = document.getElementById('nrTotalPersonas');
-  if (el) el.textContent = 1 + nrState.personasExtra.length;
+  if (!el) return;
+  const validas = nrState.personasExtra.filter(p => p.nombre && p.nombre.trim());
+  el.textContent = 1 + validas.length;
 }
 
 function addAbono() {
@@ -3145,16 +3150,18 @@ async function submitNuevaReserva() {
   if (!inicio || !fin) { showToast('Ingresa las fechas', 'error'); return; }
   if (fin <= inicio)   { showToast('La salida debe ser posterior a la llegada', 'error'); return; }
 
+  // Filtrar personas extra vacías (sin nombre)
+  const personasExtraValidas = nrState.personasExtra.filter(p => p.nombre && p.nombre.trim());
   const extrasSum = nrState.abonos.reduce((s, a) => s + (a.valor||0), 0);
   const abonoTotal = anticipo + extrasSum;
   const saldo = Math.max(0, total - abonoTotal);
-  const nPersonas = 1 + nrState.personasExtra.length;
+  const nPersonas = 1 + personasExtraValidas.length;
 
   const notasFull = [
     notas,
     nrState.mascota === true ? '🐶 Mascota: Sí' : nrState.mascota === false ? 'Sin mascota' : '',
     nrState.transporte ? '🚗 Transporte: ' + nrState.transporte : '',
-    nrState.personasExtra.length ? 'Grupo: ' + nrState.personasExtra.map(p => p.nombre + (p.cedula?' ('+p.cedula+')':'')).join(', ') : ''
+    personasExtraValidas.length ? 'Grupo: ' + personasExtraValidas.map(p => p.nombre + (p.cedula?' ('+p.cedula+')':'')).join(', ') : ''
   ].filter(Boolean).join(' | ');
 
   const btn = document.getElementById('nrSubmitBtn');
@@ -3178,7 +3185,7 @@ async function submitNuevaReserva() {
         notas: notasFull,
         mascota: nrState.mascota,
         transporte: nrState.transporte,
-        personas_extra: JSON.stringify(nrState.personasExtra)
+        personas_extra: JSON.stringify(personasExtraValidas)
       })
     });
     const data = await res.json();
