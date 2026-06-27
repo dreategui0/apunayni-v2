@@ -1048,7 +1048,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.5</span>
+          <span class="config-val">2.7.7</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -2120,7 +2120,7 @@ function renderGlosario() {
 function initForm() {
   // Date default = today
   const today = new Date();
-  document.getElementById('fFecha').value = today.toISOString().slice(0,10);
+  document.getElementById('fFecha').value = toLocalISODate(today);
 
   // Medio chips
   document.getElementById('medioChips').innerHTML = MEDIOS.map(m =>
@@ -2218,7 +2218,7 @@ function resetForm() {
   document.getElementById('fValor').value = '';
   document.getElementById('fDesc').value = '';
   document.getElementById('fNotas').value = '';
-  document.getElementById('fFecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('fFecha').value = toLocalISODate(new Date());
   state.form.medio = ''; state.form.tipo = '';
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
   setIE('INGRESO');
@@ -2255,6 +2255,31 @@ function fmtFecha(fechaStr) {
   if (d.toDateString()===yesterday.toDateString()) return 'Ayer';
   const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
   return `${d.getDate()} ${meses[d.getMonth()]}`;
+}
+
+// Parse "YYYY-MM-DD" as local-time Date (avoids UTC -5 shift causing "day less")
+function parseISODate(s) {
+  if (!s) return null;
+  if (s instanceof Date) return s;
+  const str = String(s);
+  const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  return new Date(str);
+}
+
+// Convert Date to "YYYY-MM-DD" using LOCAL components (avoids UTC shift)
+function toLocalISODate(d) {
+  if (!d) return '';
+  if (typeof d === 'string') {
+    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[0];
+    d = new Date(d);
+  }
+  if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + mo + '-' + day;
 }
 
 function parseFecha(fechaStr) {
@@ -2660,11 +2685,11 @@ async function loadReservas() {
 function renderResSummary() {
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const activas = reservasData.filter(r => {
-    const fin = new Date(r.fin);
+    const fin = parseISODate(r.fin);
     return fin >= hoy && r.estado !== 'CANCELADO';
   });
   const hist = reservasData.filter(r => {
-    const fin = new Date(r.fin);
+    const fin = parseISODate(r.fin);
     return fin < hoy && r.estado !== 'CANCELADO';
   });
   const apuAct  = activas.filter(r => r.cabana === 'APUNAYNI').length;
@@ -2746,8 +2771,8 @@ function getReservasDotsForDate(date) {
   const dotsSet = new Set();
   reservasData.forEach(r => {
     if (r.estado === 'CANCELADO') return;
-    const ini = new Date(r.inicio);
-    const fin = new Date(r.fin);
+    const ini = parseISODate(r.inicio);
+    const fin = parseISODate(r.fin);
     if (date >= ini && date < fin) {
       if (r.cabana === 'APUNAYNI')  dotsSet.add('apunayni');
       if (r.cabana === 'SALVAWASI') dotsSet.add('salvawasi');
@@ -2767,8 +2792,8 @@ function showDayReservas(dateStr) {
   const date = new Date(dateStr + 'T00:00');
   const matchingRes = reservasData.filter(r => {
     if (r.estado === 'CANCELADO') return false;
-    const ini = new Date(r.inicio);
-    const fin = new Date(r.fin);
+    const ini = parseISODate(r.inicio);
+    const fin = parseISODate(r.fin);
     return date >= ini && date < fin;
   });
 
@@ -2943,7 +2968,7 @@ function openNuevaReservaModal(fechaInicio, cabana) {
   document.querySelectorAll('.mascota-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.cab-btn').forEach(b => b.classList.remove('active'));
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = toLocalISODate(new Date());
   document.getElementById('nrFechaInicio').value = fechaInicio || today;
   document.getElementById('nrFechaFin').value = fechaInicio ? addDaysISO(fechaInicio, 1) : addDaysISO(today, 1);
 
@@ -3172,7 +3197,7 @@ async function submitNuevaReserva() {
 
 async function cancelarReserva(id) {
   const r = reservasData.find(x => x.id === id);
-  const ini = r ? new Date(r.inicio) : new Date();
+  const ini = r ? parseISODate(r.inicio) : new Date();
   const hoursToRes = (ini - new Date()) / (1000*60*60);
   const reembolsoSugerido = hoursToRes >= 48 ? 100 : 0;
 
@@ -3193,7 +3218,7 @@ async function cancelarReserva(id) {
     + '<input type="number" id="cancelPct" class="form-input" value="'+reembolsoSugerido+'" min="0" max="100">'
     + '</div>'
     + '<div style="display:flex;gap:8px">'
-    + '<button onclick="showDayReservas(\''+ini.toISOString().slice(0,10)+'\')" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Volver</button>'
+    + '<button onclick="showDayReservas(\''+toLocalISODate(ini)+'\')" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border2);color:var(--text);border-radius:8px;cursor:pointer">Volver</button>'
     + '<button onclick="confirmarCancelacion(\''+id+'\')" style="flex:1;padding:10px;background:rgba(255,95,109,0.15);border:1px solid var(--red);color:var(--red);border-radius:8px;cursor:pointer;font-weight:600">Confirmar cancelación</button>'
     + '</div>';
 }
@@ -3227,13 +3252,13 @@ async function confirmarCancelacion(id) {
 function addDaysISO(isoDate, days) {
   const d = new Date(isoDate);
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0,10);
+  return toLocalISODate(d);
 }
 
 function renderResList() {
   const hoy = new Date(); hoy.setHours(0,0,0,0);
   const activas = reservasData.filter(r => {
-    const ini = new Date(r.inicio);
+    const ini = parseISODate(r.inicio);
     return ini >= hoy && r.estado !== 'CANCELADO';
   }).sort((a,b) => new Date(a.inicio) - new Date(b.inicio)).slice(0, 10);
 
@@ -3272,10 +3297,10 @@ function buildDisponibilidadMessage(cabana) {
   const ocupadasMap = {};
   reservasData.forEach(r => {
     if (r.estado === 'CANCELADO' || r.cabana !== cabana) return;
-    const ini = new Date(r.inicio);
-    const fin = new Date(r.fin);
+    const ini = parseISODate(r.inicio);
+    const fin = parseISODate(r.fin);
     for (let d = new Date(ini); d < fin; d.setDate(d.getDate()+1)) {
-      const iso = d.toISOString().slice(0,10);
+      const iso = toLocalISODate(d);
       ocupadasMap[iso] = r.nombre || 'Reservado';
     }
   });
@@ -3308,13 +3333,13 @@ function buildDisponibilidadMessage(cabana) {
       currentYear  = d.getFullYear();
       txt += '\n*' + mesesNom[currentMonth] + ' ' + currentYear + '*\n';
     }
-    const iso = d.toISOString().slice(0,10);
+    const iso = toLocalISODate(d);
     const next = new Date(d); next.setDate(next.getDate()+1);
     const dowNow  = d.getDay();
     const dowNext = next.getDay();
 
     const isFestNow  = festivos2026.has(iso);
-    const isFestNext = festivos2026.has(next.toISOString().slice(0,10));
+    const isFestNext = festivos2026.has(toLocalISODate(next));
     const isFinde = (dowNow === 5 || dowNow === 6 || dowNow === 0 || isFestNow || isFestNext);
     const emoji = isFinde ? '🏕️' : '⛺️';
     const sufijo = (isFestNow || isFestNext) ? ' (Festivo)' : '';
@@ -3541,7 +3566,7 @@ function renderCobrosPanel() {
 
   const pendientes = reservasData.filter(r => {
     if (r.estado === 'CANCELADO') return false;
-    const ini = new Date(r.inicio);
+    const ini = parseISODate(r.inicio);
     if (ini < hoy) return false;
     if (ini < desde) return false;
     if (hasta && ini > hasta) return false;
