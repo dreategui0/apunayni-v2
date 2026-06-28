@@ -1048,7 +1048,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.8</span>
+          <span class="config-val">2.7.9</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1220,7 +1220,7 @@ html, body {
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
             <div>
               <label class="form-label" style="font-size:11px">Llegada</label>
-              <input type="date" class="form-input" id="nrFechaInicio" oninput="calcNRSaldo()">
+              <input type="date" class="form-input" id="nrFechaInicio" oninput="onInicioChange()">
             </div>
             <div>
               <label class="form-label" style="font-size:11px">Salida</label>
@@ -3095,6 +3095,19 @@ function renderAbonosList() {
       <button class="abono-remove" onclick="removeAbono(${idx})">−</button>`;
     list.appendChild(row);
   });
+}
+
+function onInicioChange() {
+  // Cuando cambia la fecha de llegada, ajustar la salida a llegada+1 si quedó igual o menor
+  const inicio = document.getElementById('nrFechaInicio').value;
+  const finEl = document.getElementById('nrFechaFin');
+  if (inicio && finEl) {
+    const fin = finEl.value;
+    if (!fin || fin <= inicio) {
+      finEl.value = addDaysISO(inicio, 1);
+    }
+  }
+  calcNRSaldo();
 }
 
 function calcNRSaldo() {
