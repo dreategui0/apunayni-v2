@@ -2262,8 +2262,18 @@ function parseISODate(s) {
   if (!s) return null;
   if (s instanceof Date) return s;
   const str = String(s);
+  // Match YYYY-MM-DD prefix — use LOCAL constructor (avoids UTC shift)
   const m = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (m) return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  if (m) {
+    // If there is a time+Z component (UTC ISO string), shift by Colombia offset before extracting date
+    // e.g. "2026-08-09T19:00:00.000Z" = midnight Bogota Aug 10, must return Aug 10
+    if (/T\d{2}:\d{2}.*Z$/.test(str)) {
+      const utc = new Date(str);
+      const local = new Date(utc.getTime() + 5 * 60 * 60 * 1000); // UTC-5 -> add 5h
+      return new Date(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+    }
+    return new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
+  }
   return new Date(str);
 }
 
