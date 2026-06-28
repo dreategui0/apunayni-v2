@@ -401,11 +401,14 @@ function handleCreateReserva(data) {
   // Acepta tanto 'total' (enviado por el form) como 'total_alquiler' (legado)
   var total = parseFloat(data.total || data.total_alquiler) || 0;
   var saldo = parseFloat(data.saldo) || Math.max(0, total - abono);
+  // Forzar columnas de fecha como TEXTO (evita conversión a Date con timezone shift)
+  var nextRow = ws.getLastRow() + 1;
+  ws.getRange(nextRow, 3, 1, 2).setNumberFormat('@'); // FECHA_INICIO y FECHA_FIN como texto
   ws.appendRow([
     id,
     (data.cabana || '').toString().toUpperCase(),
-    data.fecha_inicio || '',
-    data.fecha_fin    || '',
+    parseFechaInput(data.fecha_inicio),
+    parseFechaInput(data.fecha_fin),
     data.nombre       || '',
     data.cedula       || '',
     data.telefono     || '',
@@ -430,10 +433,52 @@ function handleUpdateReserva(data) {
   var ws   = ss.getSheetByName('RESERVAS');
   if (!ws) return jsonResponse({error: 'Hoja RESERVAS no encontrada'});
   var rows = ws.getDataRange().getValues();
+  var targetId = String(data.id || '').trim();
   for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0] === data.id) {
-      if (data.estado_pago) ws.getRange(i+1, 14).setValue(data.estado_pago);
+    if (String(rows[i][0] || '').trim() === targetId) {
+      var rowNum = i + 1; // 1-based row
 
+      // === Campos editables completos ===
+      // Col 2: CABAÑA
+      if (data.cabana !== undefined && data.cabana !== null && data.cabana !== '') {
+        ws.getRange(rowNum, 2).setValue(String(data.cabana).toUpperCase());
+      }
+      // Col 3: FECHA_INICIO — fuerza texto
+      if (data.fecha_inicio !== undefined && data.fecha_inicio !== null && data.fecha_inicio !== '') {
+        ws.getRange(rowNum, 3).setNumberFormat('@').setValue(parseFechaInput(data.fecha_inicio));
+      }
+      // Col 4: FECHA_FIN — fuerza texto
+      if (data.fecha_fin !== undefined && data.fecha_fin !== null && data.fecha_fin !== '') {
+        ws.getRange(rowNum, 4).setNumberFormat('@').setValue(parseFechaInput(data.fecha_fin));
+      }
+      // Col 5: NOMBRE
+      if (data.nombre !== undefined && data.nombre !== null) {
+        ws.getRange(rowNum, 5).setValue(data.nombre);
+      }
+      // Col 6: CEDULA
+      if (data.cedula !== undefined && data.cedula !== null) {
+        ws.getRange(rowNum, 6).setValue(data.cedula);
+      }
+      // Col 7: TELEFONO
+      if (data.telefono !== undefined && data.telefono !== null) {
+        ws.getRange(rowNum, 7).setValue(data.telefono);
+      }
+      // Col 8: EMAIL
+      if (data.email !== undefined && data.email !== null) {
+        ws.getRange(rowNum, 8).setValue(data.email);
+      }
+      // Col 9: N_PERSONAS
+      if (data.n_personas !== undefined && data.n_personas !== null) {
+        ws.getRange(rowNum, 9).setValue(parseInt(data.n_personas) || 1);
+      }
+      // Col 10: VISITANTES_EXTRA (JSON string)
+      if (data.personas_extra !== undefined && data.personas_extra !== null) {
+        ws.getRange(rowNum, 10).setValue(data.personas_extra);
+      }
+      // Col 14: ESTADO_PAGO
+      if (data.estado_pago) ws.getRange(rowNum, 14).setValue(data.estado_pago);
+
+      // === Lógica de montos ===
       var newAbono = (data.abono !== undefined && data.abono !== null)
         ? parseFloat(data.abono) : parseFloat(rows[i][10]) || 0;
       var newTotal = (data.total_alquiler !== undefined && data.total_alquiler !== null)
@@ -442,41 +487,124 @@ function handleUpdateReserva(data) {
           ? parseFloat(data.total)
           : parseFloat(rows[i][11]) || 0;
 
-      if (data.abono          !== undefined && data.abono          !== null) ws.getRange(i+1, 11).setValue(newAbono);
-      if (data.total_alquiler !== undefined && data.total_alquiler !== null) ws.getRange(i+1, 12).setValue(newTotal);
-      if (data.total          !== undefined && data.total          !== null) ws.getRange(i+1, 12).setValue(newTotal);
+      if (data.abono          !== undefined && data.abono          !== null) ws.getRange(rowNum, 11).setValue(newAbono);
+      if (data.total_alquiler !== undefined && data.total_alquiler !== null) ws.getRange(rowNum, 12).setValue(newTotal);
+      if (data.total          !== undefined && data.total          !== null) ws.getRange(rowNum, 12).setValue(newTotal);
 
       // Recalcular saldo salvo que se haya enviado explícitamente
       if (data.saldo !== undefined && data.saldo !== null) {
-        ws.getRange(i+1, 13).setValue(parseFloat(data.saldo));
+        ws.getRange(rowNum, 13).setValue(parseFloat(data.saldo));
       } else if ((data.abono !== undefined) || (data.total_alquiler !== undefined) || (data.total !== undefined)) {
-        ws.getRange(i+1, 13).setValue(Math.max(0, newTotal - newAbono));
+        ws.getRange(rowNum, 13).setValue(Math.max(0, newTotal - newAbono));
       }
 
-      if (data.notas !== undefined && data.notas !== null) ws.getRange(i+1, 18).setValue(data.notas);
+      // Col 18: NOTAS
+      if (data.notas !== undefined && data.notas !== null) ws.getRange(rowNum, 18).setValue(data.notas);
 
-      // Si se valida, registrar ingreso en FLUJO
+      // ── Registrar movimientos en FLUJO según estado ──
+      var flujoMsg = '';
+
+      // VALIDADO → registrar INGRESO (solo si no existe ya)
       if (data.estado_pago === 'VALIDADO' && newAbono > 0) {
         var flujo = ss.getSheetByName('FLUJO');
         if (flujo) {
-          var cabana  = rows[i][1];
-          var nombre  = rows[i][4];
-          var fechaIni = rows[i][2];
-          flujo.appendRow([
-            fechaIni,
-            newAbono,
-            'RESERVA - ' + nombre,
-            'BANCOLOMBIA',
-            cabana,
-            'INGRESO',
-            'Validado desde app · ID ' + data.id
-          ]);
+          var cabana   = data.cabana ? String(data.cabana).toUpperCase() : rows[i][1];
+          var nombre   = data.nombre || rows[i][4];
+          var fechaIni = data.fecha_inicio ? parseFechaInput(data.fecha_inicio) : parseFechaInput(rows[i][2]);
+          var markerIng = 'INGRESO · ID ' + targetId;
+          // Buscar duplicado por marcador exacto en NOTAS (col H, index 7)
+          var flujoRows = flujo.getDataRange().getValues();
+          var alreadyLogged = false;
+          for (var k = 3; k < flujoRows.length; k++) {
+            var notasFlujo = String(flujoRows[k][7] || '');
+            if (notasFlujo.indexOf(markerIng) !== -1) { alreadyLogged = true; break; }
+          }
+          if (!alreadyLogged) {
+            // Calcular el next row y escribir manualmente preservando la fórmula de saldos en col G
+            var nextRow = flujo.getLastRow() + 1;
+            var prevRow = nextRow - 1;
+            // Forzar formato texto en celda de fecha
+            flujo.getRange(nextRow, 1).setNumberFormat('@');
+            // Escribir A:F (datos) en una sola operación
+            flujo.getRange(nextRow, 1, 1, 6).setValues([[fechaIni, newAbono, 'RESERVA - ' + nombre, 'BANCOLOMBIA', cabana, 'INGRESO']]);
+            // Col G: fórmula de saldo acumulado (suma valor anterior + valor actual)
+            flujo.getRange(nextRow, 7).setFormula('=G' + prevRow + '+B' + nextRow);
+            // Col H: notas con marcador
+            flujo.getRange(nextRow, 8).setValue(markerIng);
+            flujoMsg = 'Ingreso registrado en FLUJO';
+          } else {
+            flujoMsg = 'Ingreso ya estaba registrado (no se duplicó)';
+          }
         }
       }
-      return jsonResponse({ok: true});
+
+      // CANCELADO → registrar EGRESO de reembolso si abono existía
+      if (data.estado_pago === 'CANCELADO') {
+        var abonoOriginal = parseFloat(rows[i][10]) || 0;
+        // Calcular % de reembolso desde las notas si están presentes (formato: "Reembolso: X%")
+        var pctReembolso = 0;
+        var notasStr = String(data.notas || '');
+        var pctMatch = notasStr.match(/Reembolso:\s*(\d+(?:\.\d+)?)\s*%/i);
+        if (pctMatch) {
+          pctReembolso = parseFloat(pctMatch[1]) || 0;
+        }
+        var montoReembolso = Math.round(abonoOriginal * pctReembolso / 100);
+
+        if (montoReembolso > 0) {
+          var flujoEg = ss.getSheetByName('FLUJO');
+          if (flujoEg) {
+            var cabanaEg = data.cabana ? String(data.cabana).toUpperCase() : rows[i][1];
+            var nombreEg = data.nombre || rows[i][4];
+            var markerEg = 'REEMBOLSO · ID ' + targetId;
+            var flujoRowsEg = flujoEg.getDataRange().getValues();
+            var alreadyRefunded = false;
+            for (var kk = 3; kk < flujoRowsEg.length; kk++) {
+              var notasEg = String(flujoRowsEg[kk][7] || '');
+              if (notasEg.indexOf(markerEg) !== -1) { alreadyRefunded = true; break; }
+            }
+            if (!alreadyRefunded) {
+              var hoyStr = new Date().toISOString().slice(0, 10);
+              var nextRowEg = flujoEg.getLastRow() + 1;
+              var prevRowEg = nextRowEg - 1;
+              flujoEg.getRange(nextRowEg, 1).setNumberFormat('@');
+              // Escribir A:F en una sola operación
+              flujoEg.getRange(nextRowEg, 1, 1, 6).setValues([[hoyStr, -montoReembolso, 'REEMBOLSO - ' + nombreEg, 'BANCOLOMBIA', 'REEMBOLSO', 'EGRESO']]);
+              // Col G: fórmula de saldo
+              flujoEg.getRange(nextRowEg, 7).setFormula('=G' + prevRowEg + '+B' + nextRowEg);
+              // Col H: notas
+              flujoEg.getRange(nextRowEg, 8).setValue(markerEg + ' (' + pctReembolso + '%)');
+              flujoMsg = 'Reembolso de $' + montoReembolso + ' registrado en FLUJO';
+            } else {
+              flujoMsg = 'Reembolso ya estaba registrado';
+            }
+          }
+        } else {
+          flujoMsg = 'Cancelado sin reembolso (0%)';
+        }
+      }
+
+      return jsonResponse({ok: true, flujoMsg: flujoMsg});
     }
   }
   return jsonResponse({error: 'Reserva no encontrada: ' + data.id});
+}
+
+// Returns "YYYY-MM-DD" STRING — keeps Sheet consistent and avoids any timezone shift
+function parseFechaInput(input) {
+  if (!input) return '';
+  if (input instanceof Date) {
+    var y = input.getFullYear();
+    var m = String(input.getMonth() + 1);
+    if (m.length < 2) m = '0' + m;
+    var d = String(input.getDate());
+    if (d.length < 2) d = '0' + d;
+    return y + '-' + m + '-' + d;
+  }
+  var str = String(input);
+  // Already YYYY-MM-DD?
+  var match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return match[0];
+  return str;
 }
 
 // ── DISPONIBILIDAD ────────────────────────────────────────────
