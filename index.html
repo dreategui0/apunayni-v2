@@ -1048,7 +1048,7 @@ html, body {
         <div class="card-title">Acerca de</div>
         <div class="config-row">
           <span class="config-label">Versión</span>
-          <span class="config-val">2.7.10</span>
+          <span class="config-val">2.7.11</span>
         </div>
         <div class="config-row">
           <span class="config-label">Registro desde</span>
@@ -1676,7 +1676,7 @@ async function syncData() {
     if (data.reservas) {
       reservasData = data.reservas.map(r => ({
         id: r.id, cabana: r.cabana,
-        inicio: r.inicio, fin: r.fin,
+        inicio: normalizeFecha(r.inicio), fin: normalizeFecha(r.fin),
         nombre: r.nombre, cedula: r.cedula,
         telefono: r.telefono, email: r.email,
         nPersonas: r.nPersonas, abono: r.abono,
@@ -2277,6 +2277,46 @@ function parseISODate(s) {
   return new Date(str);
 }
 
+// Normaliza cualquier formato de fecha que venga del Sheet a string YYYY-MM-DD puro.
+// Handles: string ISO puro, datetime con espacio, ISO con Z (UTC), objetos Date.
+// Colombia = UTC-5, sumamos 5h antes de extraer la fecha cuando hay componente UTC.
+function normalizeFecha(v) {
+  if (!v) return '';
+  const str = String(v);
+  // Ya es YYYY-MM-DD puro
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+  // YYYY-MM-DD HH:MM:SS (sin timezone, tratar como local Colombia)
+  const spaceM = str.match(/^(\d{4}-\d{2}-\d{2}) \d{2}:\d{2}/);
+  if (spaceM) return spaceM[1];
+  // ISO con Z: e.g. "2026-08-09T19:00:00.000Z" = medianoche Bogotá del día siguiente
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}.*Z$/.test(str)) {
+    const utc = new Date(str);
+    const local = new Date(utc.getTime() + 5 * 60 * 60 * 1000);
+    return local.getUTCFullYear() + '-'
+      + String(local.getUTCMonth() + 1).padStart(2, '0') + '-'
+      + String(local.getUTCDate()).padStart(2, '0');
+  }
+  // ISO con offset explícito: e.g. "2026-08-10T00:00:00-05:00"
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(str)) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const local = new Date(d.getTime() + 5 * 60 * 60 * 1000);
+      return local.getUTCFullYear() + '-'
+        + String(local.getUTCMonth() + 1).padStart(2, '0') + '-'
+        + String(local.getUTCDate()).padStart(2, '0');
+    }
+  }
+  // Cualquier otro string parseable (e.g. "Sun Aug 10 2026 00:00:00 GMT-0500")
+  const d = new Date(str);
+  if (!isNaN(d.getTime())) {
+    const local = new Date(d.getTime() + 5 * 60 * 60 * 1000);
+    return local.getUTCFullYear() + '-'
+      + String(local.getUTCMonth() + 1).padStart(2, '0') + '-'
+      + String(local.getUTCDate()).padStart(2, '0');
+  }
+  return str;
+}
+
 // Convert Date to "YYYY-MM-DD" using LOCAL components (avoids UTC shift)
 function toLocalISODate(d) {
   if (!d) return '';
@@ -2681,7 +2721,7 @@ async function loadReservas() {
     }
     reservasData = (data.rows || []).map(r => ({
       id: r.id, cabana: r.cabana,
-      inicio: r.inicio, fin: r.fin,
+      inicio: normalizeFecha(r.inicio), fin: normalizeFecha(r.fin),
       nombre: r.nombre, cedula: r.cedula,
       telefono: r.telefono, email: r.email,
       nPersonas: r.nPersonas, abono: r.abono,
